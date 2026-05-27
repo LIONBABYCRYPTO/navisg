@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Nāvisg — Singapore Transport</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="api-config.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#fff}
+#map{position:absolute;top:0;left:0;right:0;bottom:0}
+.header{position:absolute;top:12px;left:14px;z-index:1000;display:flex;gap:6px;align-items:center}
+.header h1{color:#E1251B;font-size:22px;font-weight:700;letter-spacing:-0.3px;text-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.badge{background:#E1251B;color:#fff;font-size:9px;font-weight:600;padding:2px 5px;border-radius:4px;letter-spacing:0.3px;margin-top:2px}
+.layerPanel{position:absolute;top:52px;left:10px;z-index:1000;display:flex;flex-direction:column;gap:6px}
+.layerBtn{width:42px;height:42px;border-radius:12px;border:none;background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all 0.15s;color:#444;padding:0}
+.layerBtn.active{background:#E1251B;color:#fff;box-shadow:0 2px 10px rgba(225,37,27,0.3)}
+.layerBtn:active{transform:scale(0.92)}
+.layerLabel{font-size:7px;font-weight:600;letter-spacing:0.2px;margin-top:1px;line-height:1}
+.active .layerLabel{color:#fff}
+.locationBtn{position:absolute;bottom:120px;right:12px;z-index:1000;width:40px;height:40px;border-radius:20px;border:none;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.12);font-size:18px;cursor:pointer;color:#E1251B;transition:all 0.15s}
+.locationBtn:active{transform:scale(0.9)}
+.locationBtn.active{color:#007AFF}
+.popupContent{font-size:13px;min-width:160px}
+.popupContent h3{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:2px}
+.popupContent .code{color:#888;font-size:11px;font-weight:500;margin-bottom:4px}
+.popupContent .road{color:#999;font-size:11px;margin-bottom:6px}
+.arrivals{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.arrival{background:#f5f5f5;border-radius:6px;padding:5px 8px;font-size:12px;display:flex;align-items:center;gap:5px}
+.arrival .svc{font-weight:700;color:#E1251B;font-size:12px}
+.arrival .time{color:#333;font-size:13px;font-weight:600}
+.arrival .time.arr{color:#34C759}
+.loading{color:#999;font-size:11px;margin-top:2px;font-style:italic}
+.error{color:#FF3B30;font-size:11px;margin-top:2px}
+.toggleInfo{position:absolute;bottom:80px;left:12px;z-index:1000;background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);border-radius:10px;padding:6px 10px;font-size:11px;color:#666;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:none;max-width:200px;pointer-events:none}
+.attribution{position:absolute;bottom:2px;left:4px;z-index:999;font-size:9px;color:#888;background:rgba(255,255,255,0.7);border-radius:4px;padding:1px 5px}
+@media(max-width:400px){.header h1{font-size:19px}.layerBtn{width:36px;height:36px;font-size:14px}.layerLabel{font-size:6px}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="header"><h1>nāvisg</h1><span class="badge">LIVE</span></div>
+<div class="layerPanel">
+  <button class="layerBtn active" id="btnBus" onclick="toggleLayer('bus')">🚌<span class="layerLabel">BUS</span></button>
+  <button class="layerBtn active" id="btnMrt" onclick="toggleLayer('mrt')">🚇<span class="layerLabel">MRT</span></button>
+  <button class="layerBtn" id="btnCarpark" onclick="toggleLayer('carpark')">🅿️<span class="layerLabel">PARK</span></button>
+  <button class="layerBtn" id="btnTraffic" onclick="toggleLayer('traffic')">📷<span class="layerLabel">CAM</span></button>
+</div>
+<button class="locationBtn" id="locateBtn" onclick="locateMe()">📍</button>
+<div class="toggleInfo" id="toggleInfo"></div>
+<div class="attribution">© OpenStreetMap contributors | LTA DataMall</div>
+
+<script>
+// ===== CONFIG =====
+const CENTER=[1.283,103.851];
+const ZOOM=15;
+const STOP_RADIUS=80;
+const BUS_STOP_ICON='●';
+
+// ===== STATE =====
+const state={bus:true,mrt:true,carpark:false,traffic:false,locating:false};
+const layers={bus:null,mrt:null,carpark:null,traffic:null};
+let userMarker=null;
+let userCircle=null;
+
+// ===== MAP =====
+const map=L.map('map',{zoomControl:false,attributionControl:false}).setView(CENTER,ZOOM);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19,detectRetina:true
+}).addTo(map);
+
+// ===== BUS STOP DATA =====
+const BUS_STOPS=[
+  {code:'02051',name:'The Float @ Marina Bay',road:'Raffles Ave',lat:1.2908,lng:103.8563,short:'TF'},
+  {code:'02061',name:'The Esplanade',road:'Raffles Ave',lat:1.2934,lng:103.8553,short:'TE'},
+  {code:'02101',name:'Aft S\'pore Flyer',road:'Raffles Ave',lat:1.2899,lng:103.8540,short:'AS'},
+  {code:'02111',name:'Bef S\'pore Flyer',road:'Raffles Ave',lat:1.2921,lng:103.8572,short:'BF'},
+  {code:'02151',name:'Opp The Ritz-Carlton',road:'Raffles Ave',lat:1.2901,lng:103.8590,short:'RC'},
+  {code:'02161',name:'The Ritz-Carlton',road:'Raffles Ave',lat:1.2890,lng:103.8581,short:'TR'},
+  {code:'03501',name:'Marina Bay Sands Theatre',road:'Bayfront Ave',lat:1.2834,lng:103.8589,short:'MB'},
+  {code:'03509',name:'Bayfront Stn Exit B/MBS',road:'Bayfront Ave',lat:1.2828,lng:103.8562,short:'BS'},
+  {code:'03511',name:'Marina Bay Sands',road:'Bayfront Ave',lat:1.2845,lng:103.8605,short:'MS'},
+  {code:'03519',name:'Opp Marina Bay Sands',road:'Bayfront Ave',lat:1.2839,lng:103.8610,short:'OM'},
+  {code:'03371',name:'Marina Bay Stn',road:'Sheares Ave',lat:1.2758,lng:103.8545,short:'MV'},
+  {code:'03379',name:'Opp Marina Bay Stn',road:'Sheares Ave',lat:1.2750,lng:103.8540,short:'OV'},
+  {code:'03031',name:'Aft Bayfront Ave',road:'Sheares Ave',lat:1.2843,lng:103.8536,short:'AB'},
+  {code:'03039',name:'Bef Bayfront Ave',road:'Sheares Ave',lat:1.2849,lng:103.8530,short:'BB'},
+  {code:'03541',name:'Marina Bay Financial Ctr',road:'Marina Blvd',lat:1.2787,lng:103.8525,short:'MF'},
+  {code:'03549',name:'Opp Marina Bay Financial Ctr',road:'Marina Blvd',lat:1.2781,lng:103.8519,short:'OM'},
+  {code:'03321',name:'Aft Marina Blvd',road:'Central Blvd',lat:1.2820,lng:103.8505,short:'AM'},
+  {code:'03329',name:'Bef Marina Blvd',road:'Central Blvd',lat:1.2810,lng:103.8498,short:'BM'},
+  {code:'03121',name:'The Meadow',road:'Gardens by the Bay',lat:1.2815,lng:103.8640,short:'TM'},
+  {code:'03129',name:'Opp The Meadow',road:'Gardens by the Bay',lat:1.2809,lng:103.8648,short:'OT'},
+  {code:'03218',name:'Gardens by the Bay',road:'Gardens by the Bay',lat:1.2830,lng:103.8660,short:'GB'},
+  {code:'03211',name:'Oasia Hotel Downtown',road:'Peck Seah St',lat:1.2775,lng:103.8480,short:'OH'},
+  {code:'05271',name:'Aft Telok Ayer Stn',road:'Cross St',lat:1.2832,lng:103.8482,short:'AT'},
+  {code:'05319',name:'Raffles Quay',road:'Raffles Quay',lat:1.2817,lng:103.8512,short:'RQ'},
+  {code:'83139',name:'Clifford Pier',road:'Collyer Quay',lat:1.2860,lng:103.8530,short:'CP'},
+  {code:'83131',name:'Fullerton Sq',road:'Fullerton Rd',lat:1.2880,lng:103.8520,short:'FS'},
+  {code:'85189',name:'One Raffles Quay',road:'Raffles Quay',lat:1.2825,lng:103.8500,short:'OR'},
+];
+
+// ===== MRT DATA =====
+const MRT_STATIONS=[
+  {name:'Marina Bay',code:'NS28·CE2',lat:1.2758,lng:103.8545,color:'#D42E14'},
+  {name:'Gardens by the Bay',code:'TE22',lat:1.2812,lng:103.8645,color:'#8B5E3C'},
+  {name:'Bayfront',code:'CE1·DT16',lat:1.2824,lng:103.8587,color:'#FF9933'},
+  {name:'Promenade',code:'CC4·DT15',lat:1.2873,lng:103.8590,color:'#FF9933'},
+  {name:'Esplanade',code:'CC3',lat:1.2932,lng:103.8559,color:'#FF9933'},
+  {name:'Raffles Place',code:'NS26·EW14',lat:1.2853,lng:103.8525,color:'#009645'},
+  {name:'City Hall',code:'NS25·EW13',lat:1.2929,lng:103.8526,color:'#009645'},
+  {name:'Telok Ayer',code:'DT18',lat:1.2825,lng:103.8485,color:'#005BAC'},
+  {name:'Downtown',code:'DT17',lat:1.2793,lng:103.8528,color:'#005BAC'},
+  {name:'Shenton Way',code:'TE19',lat:1.2782,lng:103.8496,color:'#8B5E3C'},
+  {name:'Maxwell',code:'TE18',lat:1.2806,lng:103.8447,color:'#8B5E3C'},
+  {name:'Tanjong Pagar',code:'EW15',lat:1.2766,lng:103.8452,color:'#009645'},
+  {name:'Outram Park',code:'EW16·NE3·TE17',lat:1.2806,lng:103.8397,color:'#009645'},
+  {name:'Chinatown',code:'DT19·NE4',lat:1.2827,lng:103.8436,color:'#9900AA'},
+  {name:'Clarke Quay',code:'NE5',lat:1.2888,lng:103.8465,color:'#9900AA'},
+  {name:'Bras Basah',code:'CC2',lat:1.2969,lng:103.8504,color:'#FF9933'},
+  {name:'Dhoby Ghaut',code:'NS24·NE6·CC1',lat:1.2990,lng:103.8463,color:'#D42E14'},
+  {name:'Bugis',code:'EW12·DT14',lat:1.2996,lng:103.8550,color:'#009645'},
+  {name:'Lavender',code:'EW11',lat:1.3070,lng:103.8600,color:'#009645'},
+  {name:'Kallang',code:'EW10',lat:1.3116,lng:103.8710,color:'#009645'},
+  {name:'Aljunied',code:'EW9',lat:1.3167,lng:103.8830,color:'#009645'},
+  {name:'Paya Lebar',code:'EW8·CC9',lat:1.3180,lng:103.8927,color:'#009645'},
+  {name:'Eunos',code:'EW7',lat:1.3198,lng:103.9028,color:'#009645'},
+  {name:'Kembangan',code:'EW6',lat:1.3214,lng:103.9120,color:'#009645'},
+  {name:'Bedok',code:'EW5',lat:1.3236,lng:103.9270,color:'#009645'},
+  {name:'Orchard',code:'NS22',lat:1.3038,lng:103.8319,color:'#D42E14'},
+  {name:'Somerset',code:'NS23',lat:1.3005,lng:103.8386,color:'#D42E14'},
+  {name:'Newton',code:'NS21·DT11',lat:1.3090,lng:103.8378,color:'#D42E14'},
+  {name:'Little India',code:'NE7·DT12',lat:1.3065,lng:103.8495,color:'#9900AA'},
+  {name:'Farrer Park',code:'NE8',lat:1.3120,lng:103.8540,color:'#9900AA'},
+  {name:'Boon Keng',code:'NE9',lat:1.3190,lng:103.8610,color:'#9900AA'},
+  {name:'Potong Pasir',code:'NE10',lat:1.3310,lng:103.8690,color:'#9900AA'},
+  {name:'Woodleigh',code:'NE11',lat:1.3390,lng:103.8710,color:'#9900AA'},
+  {name:'Serangoon',code:'NE12·CC13',lat:1.3498,lng:103.8730,color:'#9900AA'},
+  {name:'Bishan',code:'NS17·CC15',lat:1.3506,lng:103.8480,color:'#D42E14'},
+  {name:'Marina South Pier',code:'NS1',lat:1.2718,lng:103.8625,color:'#D42E14'},
+];
+
+// ===== LAYER INIT =====
+function createBusLayer(){
+  const layer=L.layerGroup();
+  BUS_STOPS.forEach(s=>{
+    const mkr=L.circleMarker([s.lat,s.lng],{
+      radius:10,color:'#999',fillColor:'#eee',fillOpacity:1,weight:2,opacity:0.9
+    }).bindPopup(`
+      <div class="popupContent">
+        <h3>${s.name}</h3>
+        <div class="code">${s.code} · ${s.short}</div>
+        <div class="road">${s.road}</div>
+        <div class="loading" id="arr-${s.code}">Loading arrivals...</div>
+      </div>
+    `).on('popupopen',()=>fetchArrivals(s.code,s.name));
+    // Add letter label
+    const icon=L.divIcon({
+      className:'bus-label',
+      html:`<div style="font-size:8px;font-weight:700;color:#555;text-align:center;line-height:20px">${s.short}</div>`,
+      iconSize:[20,20],iconAnchor:[10,10]
+    });
+    const label=L.marker([s.lat,s.lng],{icon,zIndexOffset:1000,interactive:false});
+    layer.addLayer(mkr);
+    layer.addLayer(label);
+  });
+  return layer;
+}
+
+function createMrtLayer(){
+  const layer=L.layerGroup();
+  MRT_STATIONS.forEach(s=>{
+    // Outer circle with line color
+    const mkr=L.circleMarker([s.lat,s.lng],{
+      radius:12,color:'#fff',fillColor:s.color,fillOpacity:1,weight:3
+    }).bindPopup(`
+      <div class="popupContent">
+        <h3 style="color:${s.color}">🚇 ${s.name}</h3>
+        <div class="code">${s.code}</div>
+      </div>
+    `);
+    const icon=L.divIcon({
+      className:'mrt-label',
+      html:`<div style="font-size:7px;font-weight:700;color:#fff;text-align:center;line-height:24px;text-shadow:0 1px 2px rgba(0,0,0,0.3)">${s.code.split('·')[0]}</div>`,
+      iconSize:[24,24],iconAnchor:[12,12]
+    });
+    const label=L.marker([s.lat,s.lng],{icon,zIndexOffset:1001,interactive:false});
+    layer.addLayer(mkr);
+    layer.addLayer(label);
+  });
+  return layer;
+}
+
+// ===== TRAFFIC IMAGES =====
+const TRAFFIC_CAMS=[
+  {id:'1001',lat:1.2835,lng:103.8515,title:'Marina Blvd'},
+  {id:'1002',lat:1.2850,lng:103.8560,title:'Raffles Ave'},
+  {id:'1003',lat:1.2880,lng:103.8500,title:'Fullerton Rd'},
+  {id:'1004',lat:1.2805,lng:103.8450,title:'Shenton Way'},
+  {id:'1005',lat:1.2920,lng:103.8530,title:'City Hall'},
+];
+
+function createTrafficLayer(){
+  const layer=L.layerGroup();
+  const icons=L.icon({
+    iconUrl:'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconSize:[16,24],iconAnchor:[8,24],popupAnchor:[0,-24]
+  });
+  TRAFFIC_CAMS.forEach(c=>{
+    const mkr=L.marker([c.lat,c.lng],{icon:icons}).bindPopup(`
+      <div class="popupContent">
+        <h3>📷 ${c.title}</h3>
+        <div style="margin-top:4px;color:#999;font-size:10px">Tap to view image (requires embed support)</div>
+      </div>
+    `);
+    layer.addLayer(mkr);
+  });
+  return layer;
+}
+
+// ===== CARPARK =====
+const CARPARKS=[
+  {name:'Marina Bay Sands',lat:1.2820,lng:103.8575},
+  {name:'Suntec City',lat:1.2935,lng:103.8570},
+  {name:'Marina Square',lat:1.2915,lng:103.8555},
+  {name:'Raffles City',lat:1.2931,lng:103.8531},
+  {name:'One Raffles Quay',lat:1.2820,lng:103.8505},
+  {name:'Marina Bay Financial Ctr',lat:1.2785,lng:103.8520},
+];
+
+function createCarparkLayer(){
+  const layer=L.layerGroup();
+  const icon=L.divIcon({
+    html:'<span style="font-size:20px">🅿️</span>',
+    iconSize:[24,24],iconAnchor:[12,12]
+  });
+  CARPARKS.forEach(c=>{
+    const mkr=L.marker([c.lat,c.lng],{icon}).bindPopup(`
+      <div class="popupContent">
+        <h3>🅿️ ${c.name}</h3>
+        <div class="loading" id="cp-${c.name.replace(/\\s/g,'')}">Checking availability...</div>
+      </div>
+    `).on('popupopen',()=>fetchCarparkAvailability(c.name));
+    layer.addLayer(mkr);
+  });
+  return layer;
+}
+
+// ===== LTA API =====
+async function fetchLTA(endpoint){
+  try{
+    const resp=await fetch(`https://datamall2.mytransport.sg/ltaodataservice/${endpoint}`,{
+      headers:{AccountKey:LTA_API_KEY}
+    });
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    return data.value||[];
+  }catch(e){
+    console.error('LTA API error:',e);
+    return null;
+  }
+}
+
+async function fetchArrivals(code,name){
+  const el=document.getElementById(`arr-${code}`);
+  if(!el)return;
+  el.innerHTML='Loading arrivals...';
+  el.className='loading';
+  try{
+    const resp=await fetch(`https://datamall2.mytransport.sg/ltaodataservice/BusArrivalv2?BusStopCode=${code}`,{
+      headers:{AccountKey:LTA_API_KEY}
+    });
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    const services=data.Services||[];
+    if(services.length===0){
+      el.innerHTML='<span class="error">No buses arriving</span>';
+      return;
+    }
+    let html='<div class="arrivals">';
+    services.slice(0,6).forEach(s=>{
+      const t1=s.NextBus.EstimatedArrival;
+      const t2=s.SubsequentBus.EstimatedArrival;
+      const t1Str=t1?formatTime(t1):'-';
+      const t2Str=t2?formatTime(t2):'-';
+      html+=`<div class="arrival"><span class="svc">${s.ServiceNo}</span><span class="time ${t1Str==='Arr'?'arr':''}">${t1Str}</span><span style="color:#bbb;font-size:10px">${t2Str}</span></div>`;
+    });
+    html+='</div>';
+    el.innerHTML=html;
+    el.className='';
+  }catch(e){
+    el.innerHTML=`<span class="error">Error: ${e.message}</span>`;
+    el.className='error';
+  }
+}
+
+function formatTime(isoStr){
+  if(!isoStr)return'-';
+  const now=new Date();
+  const arr=new Date(isoStr);
+  const diff=Math.floor((arr-now)/60000);
+  if(diff<0)return'Arr';
+  if(diff===0)return'Arr';
+  if(diff<60)return`${diff}m`;
+  const h=Math.floor(diff/60);
+  const m=diff%60;
+  return`${h}h${m}m`;
+}
+
+async function fetchCarparkAvailability(name){
+  const el=document.getElementById(`cp-${name.replace(/\\s/g,'')}`);
+  if(!el)return;
+  el.innerHTML='Checking...';
+  el.className='loading';
+  try{
+    const data=await fetchLTA('CarParkAvailabilityv2');
+    if(!data){el.innerHTML='<span class="error">Unavailable</span>';return}
+    const cp=data.find(c=>c.Development?.toLowerCase().includes(name.toLowerCase().slice(0,6)));
+    if(cp){
+      const avail=cp.AvailableLots??'?';
+      const total=cp.TotalLots??'?';
+      el.innerHTML=`<span style="color:#34C759">${avail}/${total} lots</span>`;
+    }else{
+      el.innerHTML='<span style="color:#999">No live data</span>';
+    }
+    el.className='';
+  }catch(e){
+    el.innerHTML=`<span class="error">${e.message}</span>`;
+  }
+}
+
+// ===== LAYER TOGGLES =====
+function initLayers(){
+  layers.bus=createBusLayer().addTo(map);
+  layers.mrt=createMrtLayer().addTo(map);
+  layers.carpark=createCarparkLayer();
+  layers.traffic=createTrafficLayer();
+}
+
+function toggleLayer(name){
+  const idx={bus:0,mrt:1,carpark:2,traffic:3}[name];
+  state[name]=!state[name];
+  const btn=document.querySelectorAll('.layerBtn')[idx];
+  btn.classList.toggle('active',state[name]);
+  if(state[name]){map.addLayer(layers[name])}
+  else{map.removeLayer(layers[name])}
+}
+
+// ===== LOCATE =====
+function locateMe(){
+  if(!navigator.geolocation){alert('Geolocation not supported');return}
+  state.locating=true;
+  document.getElementById('locateBtn').classList.add('active');
+  document.getElementById('locateBtn').textContent='⏳';
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const{latitude,longitude}=pos.coords;
+      if(userMarker)map.removeLayer(userMarker);
+      if(userCircle)map.removeLayer(userCircle);
+      userMarker=L.marker([latitude,longitude],{
+        icon:L.divIcon({
+          html:'<div style="width:20px;height:20px;border-radius:10px;background:#007AFF;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
+          iconSize:[20,20],iconAnchor:[10,10]
+        })
+      }).addTo(map).bindPopup('<div class="popupContent"><h3>📍 You are here</h3></div>');
+      userCircle=L.circle([latitude,longitude],{
+        radius:50,color:'#007AFF',fillColor:'#007AFF',fillOpacity:0.08,weight:2
+      }).addTo(map);
+      map.setView([latitude,longitude],15);
+      document.getElementById('locateBtn').textContent='📍';
+      state.locating=false;
+    },
+    err=>{
+      document.getElementById('locateBtn').textContent='📍';
+      document.getElementById('locateBtn').classList.remove('active');
+      state.locating=false;
+      if(err.code===1)alert('Please allow location access in your browser settings');
+    },
+    {enableHighAccuracy:true,timeout:10000,maximumAge:30000}
+  );
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded',()=>{
+  initLayers();
+  // Auto locate on load
+  if(navigator.geolocation){
+    setTimeout(locateMe,500);
+  }
+});
+</script>
+</body>
+</html>
