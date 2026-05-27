@@ -94,6 +94,7 @@ const List<MrtStation> singaporeMrtStations = [
   MrtStation(name: 'Buangkok', line: 'NE', latitude: 1.3828, longitude: 103.8920),
   MrtStation(name: 'Sengkang', line: 'NE', latitude: 1.3923, longitude: 103.8947),
   MrtStation(name: 'Punggol', line: 'NE', latitude: 1.4042, longitude: 103.9022),
+  MrtStation(name: 'Punggol Coast', line: 'NE', latitude: 1.4110, longitude: 103.9040),
 
   // Circle Line (CCL) — Orange
   MrtStation(name: 'Dhoby Ghaut', line: 'CC', latitude: 1.2985, longitude: 103.8459),

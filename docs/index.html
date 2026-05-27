@@ -67,7 +67,7 @@ let busStops=[], mrtStations=[];
 let busLayer=null, mrtLayer=null, carparkLayer=null, trafficLayer=null;
 let userMarker=null, userCircle=null;
 let currBusMarkers=[], currMrtMarkers=[], currCpMarkers=[], currTcMarkers=[];
-let refreshTimer=null;
+let refreshTimer=null, pendingRefreshAfterPopup=false;
 
 // ===== FULL MRT DATASET =====
 const MRT_LINES={
@@ -222,6 +222,7 @@ const FULL_MRT=[
   {n:'Outram Park',c:'NE',lt:1.2804,ln:103.8397},
   {n:'Potong Pasir',c:'NE',lt:1.331,ln:103.869},
   {n:'Punggol',c:'NE',lt:1.4042,ln:103.9022},
+  {n:'Punggol Coast',c:'NE',lt:1.4110,ln:103.9040},
   {n:'Sengkang',c:'NE',lt:1.3923,ln:103.8947},
   {n:'Serangoon',c:'NE',lt:1.3503,ln:103.8726},
   {n:'Woodleigh',c:'NE',lt:1.339,ln:103.871},
@@ -291,6 +292,13 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
 
 map.on('moveend',debouncedRefresh);
 
+map.on('popupclose',()=>{
+  if(pendingRefreshAfterPopup){
+    pendingRefreshAfterPopup=false;
+    setTimeout(refreshMap,100);
+  }
+});
+
 function debouncedRefresh(){
   if(refreshTimer)clearTimeout(refreshTimer);
   refreshTimer=setTimeout(refreshMap,200);
@@ -313,6 +321,11 @@ async function loadBusStops(){
 
 // ===== REFRESH MAP (viewport filter) =====
 function refreshMap(){
+  // Don't refresh while a popup is open — it destroys/recreates markers and closes it
+  if(map._popup&&map._popup.isOpen()){
+    pendingRefreshAfterPopup=true;
+    return;
+  }
   const bounds=map.getBounds();
   if(!bounds)return;
   
