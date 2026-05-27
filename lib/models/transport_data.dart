@@ -90,6 +90,8 @@ const List<MrtStation> singaporeMrtStations = [
   MrtStation(name: 'Woodleigh', line: 'NE', latitude: 1.3390, longitude: 103.8710),
   MrtStation(name: 'Serangoon', line: 'NE', latitude: 1.3503, longitude: 103.8726),
   MrtStation(name: 'Kovan', line: 'NE', latitude: 1.3604, longitude: 103.8804),
+  MrtStation(name: 'Hougang', line: 'NE', latitude: 1.3715, longitude: 103.8920),
+  MrtStation(name: 'Buangkok', line: 'NE', latitude: 1.3828, longitude: 103.8920),
   MrtStation(name: 'Sengkang', line: 'NE', latitude: 1.3923, longitude: 103.8947),
   MrtStation(name: 'Punggol', line: 'NE', latitude: 1.4042, longitude: 103.9022),
 
@@ -204,6 +206,8 @@ const List<MrtStation> singaporeMrtStations = [
   MrtStation(name: 'Bakau', line: 'LRT', latitude: 1.3937, longitude: 103.9081),
   MrtStation(name: 'Kangkar', line: 'LRT', latitude: 1.3945, longitude: 103.9042),
   MrtStation(name: 'Ranggung', line: 'LRT', latitude: 1.3919, longitude: 103.9059),
+  MrtStation(name: 'Farmway', line: 'LRT', latitude: 1.3933, longitude: 103.8950),
+  MrtStation(name: 'Renjong', line: 'LRT', latitude: 1.3935, longitude: 103.8925),
 
   // LRT — Punggol LRT
   MrtStation(name: 'Punggol LRT', line: 'LRT', latitude: 1.4042, longitude: 103.9022),
@@ -214,6 +218,11 @@ const List<MrtStation> singaporeMrtStations = [
   MrtStation(name: 'Kadaloor', line: 'LRT', latitude: 1.3954, longitude: 103.9124),
   MrtStation(name: 'Oasis', line: 'LRT', latitude: 1.3997, longitude: 103.9095),
   MrtStation(name: 'Damai', line: 'LRT', latitude: 1.4000, longitude: 103.9038),
+  MrtStation(name: 'Nibong', line: 'LRT', latitude: 1.4010, longitude: 103.9065),
+  MrtStation(name: 'Sam Kee', line: 'LRT', latitude: 1.4020, longitude: 103.8950),
+  MrtStation(name: 'Soo Teck', line: 'LRT', latitude: 1.3980, longitude: 103.9130),
+  MrtStation(name: 'Sumang', line: 'LRT', latitude: 1.3970, longitude: 103.8980),
+  MrtStation(name: 'Teck Lee', line: 'LRT', latitude: 1.3990, longitude: 103.9100),
 
   // LRT — Bukit Panjang LRT
   MrtStation(name: 'Choa Chu Kang', line: 'LRT', latitude: 1.3846, longitude: 103.7443),
