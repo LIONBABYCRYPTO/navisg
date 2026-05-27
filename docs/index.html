@@ -22,15 +22,20 @@ html,body{height:100%;overflow:hidden;background:#fff}
 .locationBtn{position:absolute;bottom:120px;right:12px;z-index:1000;width:40px;height:40px;border-radius:20px;border:none;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.12);font-size:18px;cursor:pointer;color:#E1251B;transition:all 0.15s}
 .locationBtn:active{transform:scale(0.9)}
 .locationBtn.active{color:#007AFF}
-.popupContent{font-size:13px;min-width:160px;max-width:260px}
+.popupContent{font-size:13px;min-width:180px;max-width:280px}
 .popupContent h3{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:2px}
-.popupContent .code{color:#888;font-size:11px;font-weight:500;margin-bottom:4px}
-.popupContent .road{color:#999;font-size:11px;margin-bottom:6px}
-.arrivals{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
-.arrival{background:#f5f5f5;border-radius:6px;padding:4px 7px;font-size:11px;display:flex;align-items:center;gap:4px}
-.arrival .svc{font-weight:700;color:#E1251B;font-size:11px}
-.arrival .time{color:#333;font-size:12px;font-weight:600}
-.arrival .time.arr{color:#34C759}
+.popupContent .code{color:#888;font-size:11px;font-weight:500;margin-bottom:2px}
+.popupContent .road{color:#999;font-size:11px;margin-bottom:4px}
+.popupContent .count{color:#999;font-size:10px;margin-bottom:4px}
+.arrivals{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-top:2px;scrollbar-width:thin;scrollbar-color:#ddd transparent}
+.arrivals::-webkit-scrollbar{width:4px}
+.arrivals::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
+.arrival{background:#f5f5f5;border-radius:6px;padding:5px 8px;font-size:11px;display:flex;align-items:center;gap:6px}
+.arrival .svc{font-weight:700;color:#E1251B;font-size:12px;min-width:30px;text-align:center;background:#fff;border-radius:4px;padding:1px 4px}
+.arrival .next{color:#333;font-size:12px;font-weight:600;min-width:36px}
+.arrival .sub{color:#bbb;font-size:10px;min-width:30px}
+.arrival .next.arr{color:#34C759}
+.arrival .dir{color:#aaa;font-size:10px;margin-left:auto}
 .loading{color:#999;font-size:11px;margin-top:2px;font-style:italic}
 .error{color:#FF3B30;font-size:11px;margin-top:2px}
 .attribution{position:absolute;bottom:2px;left:4px;z-index:999;font-size:9px;color:#888;background:rgba(255,255,255,0.7);border-radius:4px;padding:1px 5px}
@@ -450,13 +455,14 @@ async function fetchArrivals(code,name){
     const data=await resp.json();
     const services=data.Services||[];
     if(!services.length){el.innerHTML='<span class="error">No buses</span>';return}
-    let html='<div class="arrivals">';
-    services.slice(0,6).forEach(s=>{
+    let html=`<div class="count">${services.length} services</div><div class="arrivals">`;
+    services.forEach(s=>{
       const t1=s.NextBus?.EstimatedArrival;
       const t2=s.SubsequentBus?.EstimatedArrival;
       const a1=t1?fmtTime(t1):'-';
       const a2=t2?fmtTime(t2):'-';
-      html+=`<div class="arrival"><span class="svc">${s.ServiceNo}</span><span class="time ${a1==='Arr'?'arr':''}">${a1}</span><span style="color:#bbb;font-size:10px">${a2}</span></div>`;
+      const dir=s.Direction===1?'→':'←';
+      html+=`<div class="arrival"><span class="svc">${s.ServiceNo}</span><span class="next ${a1==='Arr'?'arr':''}">${a1}</span><span class="sub">${a2}</span><span class="dir">${dir}</span></div>`;
     });
     html+='</div>';
     el.innerHTML=html;
