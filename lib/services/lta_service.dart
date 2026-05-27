@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/bus_stop.dart';
+import '../models/transport_data.dart';
 
 /// Service for interacting with LTA DataMall APIs.
 /// Uses the user's LTA API key for authentication.
 class LTAService {
-  static const String _baseUrl = 'http://datamall2.mytransport.sg/ltaodataservice';
+  static const String _baseUrl = 'https://datamall2.mytransport.sg/ltaodataservice';
 
   final String _apiKey;
   final HttpClient _client;
@@ -129,5 +130,96 @@ class LTAService {
       debugPrint('LTA search exception: $e');
     }
     return [];
+  }
+
+  // ===================================================================
+  // Phase 2 APIs
+  // ===================================================================
+
+  /// Fetches car park availability data.
+  Future<List<Carpark>> getCarparkAvailability() async {
+    try {
+      final allLots = <Carpark>[];
+      var skip = 0;
+      const limit = 500;
+
+      while (true) {
+        final uri = Uri.parse('$_baseUrl/CarParkAvailabilityv2')
+            .replace(queryParameters: {'\$skip': skip.toString()});
+        final request = await _client.getUrl(uri);
+        request.headers.set('AccountKey', _apiKey);
+        final response = await request.close();
+        final body = await response.transform(utf8.decoder).join();
+
+        if (response.statusCode == 200) {
+          final data = json.decode(body) as Map<String, dynamic>;
+          final lots = (data['value'] as List? ?? [])
+              .map((l) => Carpark.fromJson(l as Map<String, dynamic>))
+              .toList();
+          allLots.addAll(lots);
+          if (lots.length < limit) break;
+          skip += limit;
+        } else {
+          break;
+        }
+      }
+      return allLots;
+    } catch (e) {
+      debugPrint('LTA getCarparkAvailability exception: $e');
+      return [];
+    }
+  }
+
+  /// Fetches MRT/LRT station crowd density.
+  Future<List<StationCrowdDensity>> getStationCrowdDensity() async {
+    try {
+      final uri = Uri.parse('$_baseUrl/PCDRealTime');
+      final request = await _client.getUrl(uri);
+      request.headers.set('AccountKey', _apiKey);
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(body) as Map<String, dynamic>;
+        final value = data['value'];
+        if (value is Map && value['status'] != null) {
+          // API returned error status
+          debugPrint('PCD API status: ${value['status']}');
+          return [];
+        }
+        if (value is List) {
+          return value
+              .map((s) =>
+                  StationCrowdDensity.fromJson(s as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('LTA getStationCrowdDensity exception: $e');
+      return [];
+    }
+  }
+
+  /// Fetches traffic incidents (accidents, road works, etc.)
+  Future<List<TrafficIncident>> getTrafficIncidents() async {
+    try {
+      final uri = Uri.parse('$_baseUrl/TrafficIncident');
+      final request = await _client.getUrl(uri);
+      request.headers.set('AccountKey', _apiKey);
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(body) as Map<String, dynamic>;
+        return (data['value'] as List? ?? [])
+            .map((i) => TrafficIncident.fromJson(i as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('LTA getTrafficIncidents exception: $e');
+      return [];
+    }
   }
 }

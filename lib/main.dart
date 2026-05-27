@@ -6,6 +6,9 @@ import 'services/favorites_service.dart';
 import 'models/bus_stop.dart';
 import 'screens/home_screen.dart';
 import 'screens/nearby_screen.dart';
+import 'screens/mrt_screen.dart';
+import 'screens/carpark_screen.dart';
+import 'screens/traffic_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,8 +39,6 @@ class _NavisgAppState extends State<NavisgApp> {
 
   Future<void> _initialize() async {
     try {
-      // Load API key from assets/secrets.json
-      // For now, we'll prompt the user to enter it on first launch
       final prefs = await SharedPreferences.getInstance();
       String? apiKey = prefs.getString('lta_api_key');
 
@@ -52,7 +53,6 @@ class _NavisgAppState extends State<NavisgApp> {
       _ltaService = LTAService(apiKey);
       _favoritesService = FavoritesService();
 
-      // Preload all bus stops (for search and nearby)
       final stops = await _ltaService.getBusStops();
       setState(() {
         _allStops = stops;
@@ -136,20 +136,25 @@ class _NavisgAppState extends State<NavisgApp> {
       );
     }
 
+    final screens = <Widget>[
+      HomeScreen(
+        ltaService: _ltaService,
+        favoritesService: _favoritesService,
+        allStops: _allStops,
+      ),
+      NearbyScreen(
+        ltaService: _ltaService,
+        allStops: _allStops,
+      ),
+      CarparkScreen(ltaService: _ltaService),
+      MrtScreen(ltaService: _ltaService),
+      TrafficScreen(ltaService: _ltaService),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentTab,
-        children: [
-          HomeScreen(
-            ltaService: _ltaService,
-            favoritesService: _favoritesService,
-            allStops: _allStops,
-          ),
-          NearbyScreen(
-            ltaService: _ltaService,
-            allStops: _allStops,
-          ),
-        ],
+        children: screens,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentTab,
@@ -166,6 +171,21 @@ class _NavisgAppState extends State<NavisgApp> {
             icon: Icon(Icons.near_me_outlined),
             selectedIcon: Icon(Icons.near_me),
             label: 'Nearby',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_parking_outlined),
+            selectedIcon: Icon(Icons.local_parking),
+            label: 'Carpark',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.train_outlined),
+            selectedIcon: Icon(Icons.train),
+            label: 'MRT',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.warning_amber_outlined),
+            selectedIcon: Icon(Icons.warning_amber),
+            label: 'Traffic',
           ),
         ],
       ),
@@ -198,8 +218,9 @@ class _ApiKeyInput extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Real-time Singapore bus arrivals & more',
+                'Real-time SG bus arrivals, MRT, carpark & traffic',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
               TextField(
@@ -221,7 +242,7 @@ class _ApiKeyInput extends StatelessWidget {
                             '2. Sign up / log in\n'
                             '3. Request for API access\n'
                             '4. Copy your AccountKey\n\n'
-                            'It\'s free and takes 2 minutes.',
+                            "It's free and takes 2 minutes.",
                           ),
                           actions: [
                             TextButton(
