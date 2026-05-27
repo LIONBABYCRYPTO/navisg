@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../services/favorites_service.dart';
 
-/// Search screen — find bus stops by code or name
+/// Search screen — find bus stops by code or name, with share/QR.
 class SearchScreen extends StatefulWidget {
   final LTAService ltaService;
   final FavoritesService favoritesService;
@@ -24,12 +26,20 @@ class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   List<BusStop> _results = [];
   Set<String> _favoriteCodes = {};
+  bool _chinese = false;
 
   @override
   void initState() {
     super.initState();
     _loadFavorites();
     _searchController.addListener(_onSearchChanged);
+    SharedPreferences.getInstance().then((p) {
+      if (mounted) {
+        setState(() {
+          _chinese = p.getString('navisg_locale') == 'zh';
+        });
+      }
+    });
   }
 
   @override
@@ -50,7 +60,6 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    // Search from cached allStops for speed
     final q = query.toUpperCase();
     setState(() {
       _results = widget.allStops.where((stop) {
@@ -67,8 +76,8 @@ class _SearchScreenState extends State<SearchScreen> {
         title: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Search by stop code or name...',
+          decoration: InputDecoration(
+            hintText: _chinese ? '按车站编号或名称搜索...' : 'Search by stop code or name...',
             border: InputBorder.none,
           ),
         ),
@@ -88,7 +97,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   Icon(Icons.search, size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   Text(
-                    'Type a bus stop code or name',
+                    _chinese ? '输入巴士站编号或名称' : 'Type a bus stop code or name',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                   ),
                 ],
@@ -111,7 +120,25 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ),
                   title: Text(stop.description),
-                  subtitle: Text('Stop ${stop.stopCode}'),
+                  subtitle: Row(
+                    children: [
+                      Text('Stop ${stop.stopCode}'),
+                      const SizedBox(width: 8),
+                      Icon(Icons.share, size: 14, color: Colors.grey.shade400),
+                      const SizedBox(width: 2),
+                      GestureDetector(
+                        onTap: () => _shareStop(stop),
+                        child: Text(
+                          _chinese ? '分享' : 'Share',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade400,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   trailing: IconButton(
                     icon: Icon(
                       isFav ? Icons.star : Icons.star_border,
@@ -130,8 +157,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         SnackBar(
                           content: Text(
                             isFav
-                                ? 'Removed ${stop.description}'
-                                : 'Saved ${stop.description}',
+                                ? (_chinese ? '已移除 ${stop.description}' : 'Removed ${stop.description}')
+                                : (_chinese ? '已收藏 ${stop.description}' : 'Saved ${stop.description}'),
                           ),
                           duration: const Duration(seconds: 1),
                         ),
@@ -142,6 +169,20 @@ class _SearchScreenState extends State<SearchScreen> {
                 );
               },
             ),
+    );
+  }
+
+  void _shareStop(BusStop stop) {
+    Clipboard.setData(ClipboardData(
+      text: 'Bus Stop ${stop.stopCode}: ${stop.description}',
+    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _chinese ? '已复制车站信息' : 'Stop info copied to clipboard!',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 }

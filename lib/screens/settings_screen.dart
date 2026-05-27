@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/lta_service.dart';
+import '../services/l10n.dart';
 import '../models/bus_stop.dart';
 
-/// Settings screen — theme toggle, API key, about
+/// Settings screen — theme toggle, API key, language, about
 class SettingsScreen extends StatefulWidget {
   final LTAService ltaService;
   final List<BusStop> allStops;
@@ -20,17 +21,19 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _darkMode = false;
+  bool _chinese = false;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    _loadPrefs();
   }
 
-  Future<void> _loadTheme() async {
+  Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _darkMode = prefs.getBool('dark_mode') ?? false;
+      _chinese = prefs.getString('navisg_locale') == 'zh';
     });
   }
 
@@ -40,29 +43,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _darkMode = value);
   }
 
+  Future<void> _toggleChinese(bool value) async {
+    await L10n.setChinese(value);
+    setState(() => _chinese = value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(_chinese ? '设置' : 'Settings'),
         backgroundColor: theme.colorScheme.primaryContainer,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Appearance section
-          _SectionHeader(title: 'Appearance'),
+          _SectionHeader(title: _chinese ? '外观' : 'Appearance'),
           Card(
             child: SwitchListTile(
               secondary: Icon(
                 _darkMode ? Icons.dark_mode : Icons.light_mode,
                 color: _darkMode ? Colors.amber : Colors.orange,
               ),
-              title: const Text('Dark Mode'),
+              title: Text(_chinese ? '深色模式' : 'Dark Mode'),
               subtitle: Text(
-                _darkMode ? 'Dark theme enabled' : 'Light theme enabled',
+                _darkMode
+                    ? (_chinese ? '已启用深色主题' : 'Dark theme enabled')
+                    : (_chinese ? '已启用浅色主题' : 'Light theme enabled'),
               ),
               value: _darkMode,
               onChanged: _toggleDarkMode,
@@ -71,13 +80,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // Data section
-          _SectionHeader(title: 'Data'),
+          _SectionHeader(title: _chinese ? '语言' : 'Language'),
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.language, color: Colors.blue),
+              title: Text(_chinese ? '中文' : 'Chinese (中文)'),
+              subtitle: Text(
+                _chinese ? '界面切换为中文' : 'Switch UI to Chinese',
+              ),
+              value: _chinese,
+              onChanged: _toggleChinese,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          _SectionHeader(title: _chinese ? '数据' : 'Data'),
           Card(
             child: ListTile(
               leading: const Icon(Icons.key),
-              title: const Text('LTA API Key'),
-              subtitle: const Text('Update your DataMall key'),
+              title: Text(_chinese ? 'LTA API密钥' : 'LTA API Key'),
+              subtitle: Text(_chinese ? '更新您的DataMall密钥' : 'Update your DataMall key'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showApiKeyDialog(context),
             ),
@@ -85,15 +108,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // About section
-          _SectionHeader(title: 'About'),
+          _SectionHeader(title: _chinese ? '关于' : 'About'),
           Card(
             child: Column(
               children: [
-                const ListTile(
-                  leading: Icon(Icons.info_outline),
-                  title: Text('Version'),
-                  subtitle: Text('1.0.0+1'),
+                ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(_chinese ? '版本' : 'Version'),
+                  subtitle: const Text('1.1.0+1'),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 const ListTile(
@@ -115,14 +137,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           Center(
             child: Text(
-              'Nāvisg — Navigate Singapore',
+              _chinese ? '畅行狮城 — 新加坡出行助手' : 'Nāvisg — Navigate Singapore',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ),
           const SizedBox(height: 4),
           Center(
             child: Text(
-              'Made with ❤️ for SG commuters',
+              _chinese ? '用心为新加坡通勤者打造 ❤️' : 'Made with ❤️ for SG commuters',
               style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
             ),
           ),
@@ -136,18 +158,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Update API Key'),
+        title: Text(_chinese ? '更新API密钥' : 'Update API Key'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'LTA DataMall AccountKey',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: _chinese ? 'LTA DataMall AccountKey' : 'LTA DataMall AccountKey',
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(_chinese ? '取消' : 'Cancel'),
           ),
           FilledButton(
             onPressed: () async {
@@ -158,15 +180,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(ctx);
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('API key updated. Restart app to apply.'),
+                      SnackBar(
+                        content: Text(
+                          _chinese ? 'API密钥已更新，请重启应用' : 'API key updated. Restart app to apply.',
+                        ),
                       ),
                     );
                   }
                 }
               }
             },
-            child: const Text('Save'),
+            child: Text(_chinese ? '保存' : 'Save'),
           ),
         ],
       ),

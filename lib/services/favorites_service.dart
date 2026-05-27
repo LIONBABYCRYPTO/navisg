@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bus_stop.dart';
 
 /// Manages user's saved/favorite bus stops locally.
+/// Supports reordering with moveFavorite().
 class FavoritesService {
   static const String _storageKey = 'navisg_favorites';
 
@@ -27,7 +28,6 @@ class FavoritesService {
   /// Save a stop as favorite
   Future<void> addFavorite(BusStop stop) async {
     final stops = await getFavorites();
-    // Check if already exists
     if (stops.any((s) => s.stopCode == stop.stopCode)) return;
     stops.add(stop);
     await _save(stops);
@@ -37,6 +37,17 @@ class FavoritesService {
   Future<void> removeFavorite(String stopCode) async {
     final stops = await getFavorites();
     stops.removeWhere((s) => s.stopCode == stopCode);
+    await _save(stops);
+  }
+
+  /// Reorder: move item at [oldIndex] to [newIndex]
+  Future<void> moveFavorite(int oldIndex, int newIndex) async {
+    final stops = await getFavorites();
+    if (oldIndex < 0 || oldIndex >= stops.length) return;
+    if (newIndex < 0 || newIndex > stops.length) return;
+
+    final item = stops.removeAt(oldIndex);
+    stops.insert(newIndex, item);
     await _save(stops);
   }
 

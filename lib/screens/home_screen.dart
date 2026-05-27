@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../services/favorites_service.dart';
+import '../services/l10n.dart';
 import '../widgets/bus_timing_card.dart';
 import '../widgets/ad_banner.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
 
-/// Home screen — shows saved bus stops with live arrival times
+/// Home screen — shows saved bus stops with live arrival times.
+/// Features: auto-refresh, direction filter, drag-to-reorder, search filter.
 class HomeScreen extends StatefulWidget {
   final LTAService ltaService;
   final FavoritesService favoritesService;
@@ -31,11 +35,63 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorMessage;
   DateTime? _lastUpdated;
   String _searchFilter = '';
+  bool _chinese = false;
+
+  // Auto-refresh
+  Timer? _autoRefreshTimer;
+  bool _autoRefresh = true;
+  static const _refreshInterval = Duration(seconds: 30);
+
+  // Reorder
+  bool _isReordering = false;
 
   @override
   void initState() {
     super.initState();
+    _loadPrefs();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _chinese = prefs.getString('navisg_locale') == 'zh';
+      _autoRefresh = prefs.getBool('navisg_auto_refresh') ?? true;
+    });
+    if (_autoRefresh) _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (mounted && _favorites.isNotEmpty) _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    try {
+      final results = await Future.wait(
+        _favorites.map((stop) => widget.ltaService.getBusArrival(stop.stopCode)),
+      );
+
+      final arrivalMap = <String, dynamic>{};
+      for (int i = 0; i < _favorites.length; i++) {
+        arrivalMap[_favorites[i].stopCode] = results[i];
+      }
+
+      if (mounted) {
+        setState(() {
+          _arrivalData = arrivalMap;
+          _lastUpdated = DateTime.now();
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -55,7 +111,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      // Fetch arrivals for all favorited stops in parallel
       final results = await Future.wait(
         favorites.map((stop) => widget.ltaService.getBusArrival(stop.stopCode)),
       );
@@ -96,12 +151,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<BusStop> get _filteredFavorites {
-    if (_searchFilter.isEmpty) return _favorites;
-    final q = _searchFilter.toLowerCase();
-    return _favorites.where((s) {
-      return s.stopCode.contains(q) ||
-          s.description.toLowerCase().contains(q);
-    }).toList();
+    var list = _favorites;
+    if (_searchFilter.isNotEmpty) {
+      final q = _searchFilter.toLowerCase();
+      list = list.where((s) =>
+          s.stopCode.contains(q) || s.description.toLowerCase().contains(q)
+      ).toList();
+    }
+    return list;
+  }
+
+  String _timeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return _chinese ? '刚刚' : 'just now';
+    if (diff.inMinutes == 1) return _chinese ? '1分钟前' : '1 min ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}${_chinese ? '分钟前' : ' min ago'}';
+    return '${diff.inHours}${_chinese ? '小时前' : 'h ago'}';
   }
 
   @override
@@ -110,9 +175,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Nāvisg',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+        title: Text(
+          _chinese ? '畅行狮城' : 'Nāvisg',
+          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
         ),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -120,12 +185,38 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: _openSearch,
-            tooltip: 'Search bus stops',
+            tooltip: _chinese ? '搜索巴士站' : 'Search bus stops',
+          ),
+          IconButton(
+            icon: _autoRefresh
+                ? const Icon(Icons.timer)
+                : Icon(Icons.timer_off, color: Colors.grey.shade500),
+            onPressed: () {
+              setState(() {
+                _autoRefresh = !_autoRefresh;
+              });
+              SharedPreferences.getInstance().then(
+                (p) => p.setBool('navisg_auto_refresh', _autoRefresh),
+              );
+              if (_autoRefresh) {
+                _startAutoRefresh();
+              } else {
+                _autoRefreshTimer?.cancel();
+              }
+            },
+            tooltip: _chinese ? '自动刷新' : 'Auto-refresh',
+          ),
+          IconButton(
+            icon: _isReordering ? const Icon(Icons.check) : const Icon(Icons.sort),
+            onPressed: () => setState(() => _isReordering = !_isReordering),
+            tooltip: _isReordering
+                ? (_chinese ? '完成排序' : 'Done reordering')
+                : (_chinese ? '排序' : 'Reorder'),
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
-            tooltip: 'Refresh',
+            tooltip: _chinese ? '刷新' : 'Refresh',
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -137,20 +228,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ltaService: widget.ltaService,
                 ),
               ),
-            ),
-            tooltip: 'Settings',
+            ).then((_) => _loadPrefs()),
+            tooltip: _chinese ? '设置' : 'Settings',
           ),
         ],
       ),
       body: _buildBody(filtered),
-      // Bottom ad banner (only shown when we have content)
       bottomNavigationBar: _favorites.isNotEmpty ? const AdBanner() : null,
     );
   }
 
   Widget _buildBody(List<BusStop> filtered) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(
+              _chinese ? '正在加载...' : 'Loading Navisg...',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      );
     }
 
     if (_errorMessage != null) {
@@ -165,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton.icon(
               onPressed: _loadData,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(_chinese ? '重试' : 'Retry'),
             ),
           ],
         ),
@@ -183,12 +285,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   size: 80, color: Colors.grey.shade400),
               const SizedBox(height: 24),
               Text(
-                'No Saved Stops Yet',
+                L10n.tr(AppStrings.noSavedStops, chinese: _chinese),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 12),
               Text(
-                'Tap the search icon above to find and save your favorite bus stops.',
+                L10n.tr(AppStrings.findStopsHint, chinese: _chinese),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
               ),
@@ -196,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ElevatedButton.icon(
                 onPressed: _openSearch,
                 icon: const Icon(Icons.search),
-                label: const Text('Find Bus Stops'),
+                label: Text(L10n.tr(AppStrings.findStops, chinese: _chinese)),
               ),
             ],
           ),
@@ -209,12 +311,12 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           // Inline filter field
-          if (_favorites.length > 3)
+          if (_favorites.length > 2)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Filter stops...',
+                  hintText: L10n.tr(AppStrings.filterStops, chinese: _chinese),
                   prefixIcon: const Icon(Icons.filter_list, size: 20),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -226,37 +328,106 @@ class _HomeScreenState extends State<HomeScreen> {
                 onChanged: (v) => setState(() => _searchFilter = v),
               ),
             ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-              itemCount: filtered.length + 1,
-              itemBuilder: (context, index) {
-                if (index == filtered.length) {
-                  return _LastUpdatedBadge(lastUpdated: _lastUpdated);
-                }
-                final stop = filtered[index];
-                final services = _arrivalData[stop.stopCode] as List? ?? [];
-                return BusTimingCard(
-                  stop: stop,
-                  services: services.cast(),
-                  onRemove: () async {
-                    await widget.favoritesService.removeFavorite(stop.stopCode);
-                    _loadData();
-                  },
-                  onRefresh: _loadData,
-                );
-              },
+          // Auto-refresh badge
+          if (_autoRefresh && _lastUpdated != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Row(
+                children: [
+                  Icon(Icons.timer, size: 12, color: Colors.green.shade400),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${L10n.tr(AppStrings.updated, chinese: _chinese)} ${_timeAgo(_lastUpdated!)}',
+                    style: TextStyle(fontSize: 11, color: Colors.green.shade600),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${_chinese ? '自动刷新中' : 'Auto-refreshing'}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
             ),
+          Expanded(
+            child: _isReordering
+                ? _buildReorderableList(filtered)
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                    itemCount: filtered.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == filtered.length) {
+                        return _LastUpdatedBadge(
+                          lastUpdated: _lastUpdated,
+                          chinese: _chinese,
+                        );
+                      }
+                      final stop = filtered[index];
+                      final services = _arrivalData[stop.stopCode] as List? ?? [];
+                      return BusTimingCard(
+                        stop: stop,
+                        services: services.cast(),
+                        onRemove: () async {
+                          await widget.favoritesService.removeFavorite(stop.stopCode);
+                          _loadData();
+                        },
+                        onRefresh: _loadData,
+                      );
+                    },
+                  ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReorderableList(List<BusStop> filtered) {
+    return ReorderableListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      itemCount: filtered.length,
+      onReorder: (oldIndex, newIndex) async {
+        await widget.favoritesService.moveFavorite(oldIndex, newIndex);
+        _loadData();
+      },
+      proxyDecorator: (child, index, animation) {
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            final double elevation = Tween<double>(begin: 0, end: 6)
+                .animate(animation)
+                .value;
+            return Material(
+              elevation: elevation,
+              borderRadius: BorderRadius.circular(12),
+              child: child,
+            );
+          },
+          child: child,
+        );
+      },
+      itemBuilder: (context, index) {
+        final stop = filtered[index];
+        final services = _arrivalData[stop.stopCode] as List? ?? [];
+        return BusTimingCard(
+          key: ValueKey(stop.stopCode),
+          stop: stop,
+          services: services.cast(),
+          onRemove: () async {
+            await widget.favoritesService.removeFavorite(stop.stopCode);
+            _loadData();
+          },
+          onRefresh: _loadData,
+          isDragging: false,
+        );
+      },
     );
   }
 }
 
 class _LastUpdatedBadge extends StatelessWidget {
   final DateTime? lastUpdated;
-  const _LastUpdatedBadge({this.lastUpdated});
+  final bool chinese;
+
+  const _LastUpdatedBadge({this.lastUpdated, this.chinese = false});
 
   @override
   Widget build(BuildContext context) {
@@ -271,7 +442,7 @@ class _LastUpdatedBadge extends StatelessWidget {
             Icon(Icons.schedule, size: 12, color: Colors.grey.shade400),
             const SizedBox(width: 4),
             Text(
-              'Updated $ago',
+              '${chinese ? '更新于' : 'Updated'} $ago',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           ],
@@ -282,10 +453,9 @@ class _LastUpdatedBadge extends StatelessWidget {
 
   String _timeAgo(DateTime time) {
     final diff = DateTime.now().difference(time);
-    if (diff.inSeconds < 60) return 'just now';
-    if (diff.inMinutes == 1) return '1 min ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours == 1) return '1 hour ago';
-    return '${diff.inHours} hours ago';
+    if (diff.inSeconds < 60) return chinese ? '刚刚' : 'just now';
+    if (diff.inMinutes == 1) return chinese ? '1分钟前' : '1 min ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}${chinese ? '分钟前' : ' min ago'}';
+    return '${diff.inHours}${chinese ? '小时前' : 'h ago'}';
   }
 }
