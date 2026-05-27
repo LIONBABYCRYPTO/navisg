@@ -5,6 +5,7 @@ import '../services/favorites_service.dart';
 import '../widgets/bus_timing_card.dart';
 import '../widgets/ad_banner.dart';
 import 'search_screen.dart';
+import 'settings_screen.dart';
 
 /// Home screen — shows saved bus stops with live arrival times
 class HomeScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   Map<String, dynamic> _arrivalData = {};
   String? _errorMessage;
+  DateTime? _lastUpdated;
+  String _searchFilter = '';
 
   @override
   void initState() {
@@ -66,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _favorites = favorites;
         _arrivalData = arrivalMap;
         _loading = false;
+        _lastUpdated = DateTime.now();
       });
     } catch (e) {
       setState(() {
@@ -91,8 +95,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  List<BusStop> get _filteredFavorites {
+    if (_searchFilter.isEmpty) return _favorites;
+    final q = _searchFilter.toLowerCase();
+    return _favorites.where((s) {
+      return s.stopCode.contains(q) ||
+          s.description.toLowerCase().contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredFavorites;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -112,15 +127,28 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _loadData,
             tooltip: 'Refresh',
           ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(
+                  allStops: widget.allStops,
+                  ltaService: widget.ltaService,
+                ),
+              ),
+            ),
+            tooltip: 'Settings',
+          ),
         ],
       ),
-      body: _buildBody(),
-      // Bottom ad banner
-      bottomNavigationBar: const AdBanner(),
+      body: _buildBody(filtered),
+      // Bottom ad banner (only shown when we have content)
+      bottomNavigationBar: _favorites.isNotEmpty ? const AdBanner() : null,
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(List<BusStop> filtered) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -178,24 +206,86 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        itemCount: _favorites.length,
-        itemBuilder: (context, index) {
-          final stop = _favorites[index];
-          final services = _arrivalData[stop.stopCode] as List? ?? [];
-          return BusTimingCard(
-            stop: stop,
-            services: services.cast(),
-            onRemove: () async {
-              await widget.favoritesService.removeFavorite(stop.stopCode);
-              _loadData();
-            },
-            onRefresh: _loadData,
-          );
-        },
+      child: Column(
+        children: [
+          // Inline filter field
+          if (_favorites.length > 3)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Filter stops...',
+                  prefixIcon: const Icon(Icons.filter_list, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 14),
+                onChanged: (v) => setState(() => _searchFilter = v),
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+              itemCount: filtered.length + 1,
+              itemBuilder: (context, index) {
+                if (index == filtered.length) {
+                  return _LastUpdatedBadge(lastUpdated: _lastUpdated);
+                }
+                final stop = filtered[index];
+                final services = _arrivalData[stop.stopCode] as List? ?? [];
+                return BusTimingCard(
+                  stop: stop,
+                  services: services.cast(),
+                  onRemove: () async {
+                    await widget.favoritesService.removeFavorite(stop.stopCode);
+                    _loadData();
+                  },
+                  onRefresh: _loadData,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
+class _LastUpdatedBadge extends StatelessWidget {
+  final DateTime? lastUpdated;
+  const _LastUpdatedBadge({this.lastUpdated});
+
+  @override
+  Widget build(BuildContext context) {
+    if (lastUpdated == null) return const SizedBox.shrink();
+    final ago = _timeAgo(lastUpdated!);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.schedule, size: 12, color: Colors.grey.shade400),
+            const SizedBox(width: 4),
+            Text(
+              'Updated $ago',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _timeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes == 1) return '1 min ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours == 1) return '1 hour ago';
+    return '${diff.inHours} hours ago';
+  }
+}

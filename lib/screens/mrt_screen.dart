@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/transport_data.dart';
+import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../widgets/ad_banner.dart';
+import 'settings_screen.dart';
 
 /// MRT Station Crowd Density screen
 class MrtScreen extends StatefulWidget {
   final LTAService ltaService;
-  const MrtScreen({super.key, required this.ltaService});
+  final List<BusStop> allStops;
+
+  const MrtScreen({super.key, required this.ltaService, this.allStops = const []});
 
   @override
   State<MrtScreen> createState() => _MrtScreenState();
@@ -16,6 +20,7 @@ class _MrtScreenState extends State<MrtScreen> {
   List<StationCrowdDensity> _stations = [];
   bool _loading = true;
   String? _error;
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
@@ -40,6 +45,7 @@ class _MrtScreenState extends State<MrtScreen> {
         setState(() {
           _stations = data;
           _loading = false;
+          _lastUpdated = DateTime.now();
         });
       }
     } catch (e) {
@@ -58,6 +64,18 @@ class _MrtScreenState extends State<MrtScreen> {
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(
+                  allStops: widget.allStops,
+                  ltaService: widget.ltaService,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       body: _loading
@@ -89,8 +107,12 @@ class _MrtScreenState extends State<MrtScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
-                    itemCount: _stations.length,
+                    padding: const EdgeInsets.only(bottom: 4),
+                    itemCount: _stations.length + 1,
                     itemBuilder: (context, index) {
+                      if (index == _stations.length) {
+                        return _LastUpdatedBadge(lastUpdated: _lastUpdated);
+                      }
                       final s = _stations[index];
                       return _MrtStationTile(station: s);
                     },
@@ -98,6 +120,33 @@ class _MrtScreenState extends State<MrtScreen> {
                 ),
       bottomNavigationBar: const AdBanner(),
     );
+  }
+}
+
+class _LastUpdatedBadge extends StatelessWidget {
+  final DateTime? lastUpdated;
+  const _LastUpdatedBadge({this.lastUpdated});
+
+  @override
+  Widget build(BuildContext context) {
+    if (lastUpdated == null) return const SizedBox.shrink();
+    final ago = _timeAgo(lastUpdated!);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Updated $ago',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        ),
+      ),
+    );
+  }
+
+  String _timeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes == 1) return '1 min ago';
+    return '${diff.inMinutes} min ago';
   }
 }
 

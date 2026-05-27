@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/transport_data.dart';
+import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../widgets/ad_banner.dart';
+import 'settings_screen.dart';
 
 /// Carpark Availability screen
 class CarparkScreen extends StatefulWidget {
   final LTAService ltaService;
-  const CarparkScreen({super.key, required this.ltaService});
+  final List<BusStop> allStops;
+
+  const CarparkScreen({super.key, required this.ltaService, this.allStops = const []});
 
   @override
   State<CarparkScreen> createState() => _CarparkScreenState();
@@ -19,6 +23,7 @@ class _CarparkScreenState extends State<CarparkScreen> {
   String _searchQuery = '';
   List<String> _areas = [];
   String _filterArea = 'All';
+  DateTime? _lastUpdated;
 
   @override
   void initState() {
@@ -35,6 +40,7 @@ class _CarparkScreenState extends State<CarparkScreen> {
       _areas = areas;
       _applyFilters();
       _loading = false;
+      _lastUpdated = DateTime.now();
     });
   }
 
@@ -63,6 +69,18 @@ class _CarparkScreenState extends State<CarparkScreen> {
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(
+                  allStops: widget.allStops,
+                  ltaService: widget.ltaService,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
       body: _loading
@@ -111,9 +129,19 @@ class _CarparkScreenState extends State<CarparkScreen> {
                 // Stats
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Text(
-                    '${_filtered.length} carparks · ${_filtered.fold<int>(0, (s, c) => s + c.availableLots)} total lots',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${_filtered.length} carparks · ${_filtered.fold<int>(0, (s, c) => s + c.availableLots)} total lots',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                      const Spacer(),
+                      if (_lastUpdated != null)
+                        Text(
+                          'Updated ${_timeAgo(_lastUpdated!)}',
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                        ),
+                    ],
                   ),
                 ),
                 // List
@@ -133,6 +161,13 @@ class _CarparkScreenState extends State<CarparkScreen> {
             ),
       bottomNavigationBar: const AdBanner(),
     );
+  }
+
+  String _timeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes == 1) return '1 min ago';
+    return '${diff.inMinutes} min ago';
   }
 }
 

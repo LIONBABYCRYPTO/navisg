@@ -31,6 +31,7 @@ class _NavisgAppState extends State<NavisgApp> {
   bool _initializing = true;
   String? _initError;
   int _currentTab = 0;
+  bool _darkMode = false;
 
   @override
   void initState() {
@@ -51,6 +52,9 @@ class _NavisgAppState extends State<NavisgApp> {
         return;
       }
 
+      // Load theme preference
+      final darkMode = prefs.getBool('dark_mode') ?? false;
+
       _ltaService = LTAService(apiKey);
       _favoritesService = FavoritesService();
 
@@ -58,6 +62,7 @@ class _NavisgAppState extends State<NavisgApp> {
       setState(() {
         _allStops = stops;
         _initializing = false;
+        _darkMode = darkMode;
       });
     } catch (e) {
       setState(() {
@@ -86,6 +91,15 @@ class _NavisgAppState extends State<NavisgApp> {
         useMaterial3: true,
         appBarTheme: const AppBarTheme(centerTitle: true),
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1565C0),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        appBarTheme: const AppBarTheme(centerTitle: true),
+      ),
+      themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
       home: _buildHome(),
     );
   }
@@ -151,9 +165,9 @@ class _NavisgAppState extends State<NavisgApp> {
         ltaService: _ltaService,
         allStops: _allStops,
       ),
-      CarparkScreen(ltaService: _ltaService),
-      MrtScreen(ltaService: _ltaService),
-      TrafficScreen(ltaService: _ltaService),
+      CarparkScreen(ltaService: _ltaService, allStops: _allStops),
+      MrtScreen(ltaService: _ltaService, allStops: _allStops),
+      TrafficScreen(ltaService: _ltaService, allStops: _allStops),
     ];
 
     return Scaffold(
