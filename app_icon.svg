@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#1565C0"/>
+  <circle cx="200" cy="180" r="250" fill="#1E78D6" opacity="0.3"/>
+  <circle cx="820" cy="780" r="280" fill="#0D47A0" opacity="0.25"/>
+
+  <!-- Map Pin -->
+  <g>
+    <!-- White circle -->
+    <circle cx="512" cy="490" r="300" fill="#FFFFFF"/>
+    <!-- Pin tail -->
+    <polygon points="462,480 562,480 512,580" fill="#FFFFFF"/>
+
+    <!-- Gold border on circle -->
+    <circle cx="512" cy="490" r="300" fill="none" stroke="#FFC107" stroke-width="10"/>
+
+    <!-- Gold border down tail sides -->
+    <line x1="468" y1="481" x2="508" y2="575" stroke="#FFC107" stroke-width="8" stroke-linecap="round"/>
+    <line x1="556" y1="481" x2="516" y2="575" stroke="#FFC107" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Bus -->
+  <g transform="translate(512, 475)">
+    <!-- Bus body -->
+    <rect x="-115" y="-55" width="230" height="115" rx="14" ry="14" fill="#212121"/>
+
+    <!-- Windows top row -->
+    <rect x="-98" y="-43" width="52" height="30" rx="5" fill="#90CAF9"/>
+    <rect x="-33" y="-43" width="52" height="30" rx="5" fill="#90CAF9"/>
+    <rect x="32" y="-43" width="52" height="30" rx="5" fill="#90CAF9"/>
+
+    <!-- Windows bottom row -->
+    <rect x="-98" y="3" width="52" height="30" rx="5" fill="#90CAF9"/>
+    <rect x="-33" y="3" width="52" height="30" rx="5" fill="#90CAF9"/>
+    <rect x="32" y="3" width="52" height="30" rx="5" fill="#90CAF9"/>
+
+    <!-- Gold stripe -->
+    <rect x="-100" y="-6" width="200" height="5" fill="#FFC107"/>
+
+    <!-- Wheels -->
+    <circle cx="-72" cy="60" r="18" fill="#FFC107"/>
+    <circle cx="-72" cy="60" r="13" fill="#212121"/>
+    <circle cx="72" cy="60" r="18" fill="#FFC107"/>
+    <circle cx="72" cy="60" r="13" fill="#212121"/>
+
+    <!-- Roof highlight -->
+    <rect x="-100" y="-54" width="200" height="4" rx="2" fill="#FFFFFF" opacity="0.15"/>
+  </g>
+
+  <!-- Outer gold ring -->
+  <rect x="6" y="6" width="1012" height="1012" rx="177" ry="177" fill="none" stroke="#FFC107" stroke-width="6"/>
+</svg>
