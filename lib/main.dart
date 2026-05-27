@@ -9,6 +9,7 @@ import 'screens/nearby_screen.dart';
 import 'screens/mrt_screen.dart';
 import 'screens/carpark_screen.dart';
 import 'screens/traffic_screen.dart';
+import 'screens/map_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,6 +147,10 @@ class _NavisgAppState extends State<NavisgApp> {
         ltaService: _ltaService,
         allStops: _allStops,
       ),
+      MapScreen(
+        ltaService: _ltaService,
+        allStops: _allStops,
+      ),
       CarparkScreen(ltaService: _ltaService),
       MrtScreen(ltaService: _ltaService),
       TrafficScreen(ltaService: _ltaService),
@@ -171,6 +176,11 @@ class _NavisgAppState extends State<NavisgApp> {
             icon: Icon(Icons.near_me_outlined),
             selectedIcon: Icon(Icons.near_me),
             label: 'Nearby',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined),
+            selectedIcon: Icon(Icons.map),
+            label: 'Map',
           ),
           NavigationDestination(
             icon: Icon(Icons.local_parking_outlined),

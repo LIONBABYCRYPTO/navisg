@@ -1,6 +1,9 @@
 # Flutter
 .dart_tool/
 .packages
+.flutter-plugins
+.flutter-plugins-dependencies
+android/app/keys/
 build/
 *.iml
 .idea/
