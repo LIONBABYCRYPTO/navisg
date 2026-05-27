@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
+import '../widgets/ad_banner.dart';
 
 /// Nearby screen — shows bus stops near your current GPS location
 class NearbyScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class NearbyScreen extends StatefulWidget {
 class _NearbyScreenState extends State<NearbyScreen> {
   // For MVP, we use default Singapore coordinates
   // In production, use geolocator package for real GPS
-  final double _lat = 1.3521; // Default: Singapore city center
+  final double _lat = 1.3521;
   final double _lng = 103.8198;
   List<_NearbyStop> _nearbyStops = [];
   bool _loading = true;
@@ -107,7 +108,6 @@ class _NearbyScreenState extends State<NearbyScreen> {
                         ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
-                          // TODO: Navigate to stop detail with bus arrivals
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -122,26 +122,18 @@ class _NearbyScreenState extends State<NearbyScreen> {
                 ),
               ],
             ),
-      bottomNavigationBar: Container(
-        height: 50,
-        color: Colors.grey.shade200,
-        alignment: Alignment.center,
-        child: Text(
-          'Ad · Support Navisg',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-        ),
-      ),
+      bottomNavigationBar: const AdBanner(),
     );
   }
 
-  /// Haversine distance in meters between two lat/lng points
+  /// Haversine distance in meters
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    const R = 6371000; // Earth radius in meters
+    const R = 6371000;
     final dLat = _toRadians(lat2 - lat1);
     final dLng = _toRadians(lng2 - lng1);
     final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(math.pi / 180 * lat1) *
-            math.cos(math.pi / 180 * lat2) *
+        math.cos(_toRadians(lat1)) *
+            math.cos(_toRadians(lat2)) *
             math.sin(dLng / 2) *
             math.sin(dLng / 2);
     final c = 2 * math.asin(math.sqrt(a));

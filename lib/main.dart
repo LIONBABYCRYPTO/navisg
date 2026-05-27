@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'services/lta_service.dart';
 import 'services/favorites_service.dart';
 import 'models/bus_stop.dart';
@@ -8,6 +9,7 @@ import 'screens/nearby_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   runApp(const NavisgApp());
 }
 

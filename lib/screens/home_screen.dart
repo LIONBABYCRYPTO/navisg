@@ -3,6 +3,7 @@ import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../services/favorites_service.dart';
 import '../widgets/bus_timing_card.dart';
+import '../widgets/ad_banner.dart';
 import 'search_screen.dart';
 
 /// Home screen — shows saved bus stops with live arrival times
@@ -114,8 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _buildBody(),
-      // Bottom ad banner placeholder
-      bottomNavigationBar: const _AdBannerPlaceholder(),
+      // Bottom ad banner
+      bottomNavigationBar: const AdBanner(),
     );
   }
 
@@ -198,20 +199,3 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Placeholder for AdMob banner — will be replaced when ad unit ID is provided
-class _AdBannerPlaceholder extends StatelessWidget {
-  const _AdBannerPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      color: Colors.grey.shade200,
-      alignment: Alignment.center,
-      child: Text(
-        'Ad · Support Navisg',
-        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-      ),
-    );
-  }
-}
