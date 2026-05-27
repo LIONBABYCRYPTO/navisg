@@ -871,6 +871,7 @@ class MapScreenState extends State<MapScreen> {
       case 'EW': return const Color(0xFF009645);
       case 'NE': return const Color(0xFF9900AA);
       case 'CC': return const Color(0xFFFFA100);
+      case 'CE': return const Color(0xFFFFA100);
       case 'DT': return const Color(0xFF005EC4);
       case 'TE': return const Color(0xFF9D5B25);
       case 'CG': return const Color(0xFF009645);
@@ -881,7 +882,7 @@ class MapScreenState extends State<MapScreen> {
 
   String _mrtLineAbbr(String line) {
     switch (line) {
-      case 'NS': case 'EW': case 'NE': case 'CC': case 'DT': case 'TE': case 'CG': return line;
+      case 'NS': case 'EW': case 'NE': case 'CC': case 'CE': case 'DT': case 'TE': case 'CG': return line;
       case 'LRT': return 'L';
       default: return '?';
     }
