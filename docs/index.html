@@ -34,8 +34,10 @@ html,body{height:100%;overflow:hidden;background:#fff}
 .arrival .svc{font-weight:700;color:#E1251B;font-size:12px;min-width:30px;text-align:center;background:#fff;border-radius:4px;padding:1px 4px}
 .arrival .next{color:#333;font-size:12px;font-weight:600;min-width:36px}
 .arrival .sub{color:#bbb;font-size:10px;min-width:30px}
+.arrival .sub3{color:#ccc;font-size:9px;min-width:30px}
 .arrival .next.arr{color:#34C759}
 .arrival .dir{color:#aaa;font-size:10px;margin-left:auto}
+.arrivalHeader{display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:9px;color:#aaa;font-weight:600}
 .loading{color:#999;font-size:11px;margin-top:2px;font-style:italic}
 .error{color:#FF3B30;font-size:11px;margin-top:2px}
 .attribution{position:absolute;bottom:2px;left:4px;z-index:999;font-size:9px;color:#888;background:rgba(255,255,255,0.7);border-radius:4px;padding:1px 5px}
@@ -469,13 +471,16 @@ async function fetchArrivals(code,name){
     const services=data.Services||[];
     if(!services.length){el.innerHTML='<span class="error">No buses</span>';return}
     let html=`<div class="count">${services.length} services</div><div class="arrivals">`;
+    html+=`<div class="arrivalHeader"><span style="min-width:30px"></span><span style="min-width:36px">1st</span><span style="min-width:30px">2nd</span><span style="min-width:30px">3rd</span></div>`;
     services.forEach(s=>{
       const t1=s.NextBus?.EstimatedArrival;
-      const t2=s.SubsequentBus?.EstimatedArrival;
+      const t2=s.NextBus2?.EstimatedArrival;
+      const t3=s.NextBus3?.EstimatedArrival;
       const a1=t1?fmtTime(t1):'-';
       const a2=t2?fmtTime(t2):'-';
+      const a3=t3?fmtTime(t3):'-';
       const dir=s.Direction===1?'→':'←';
-      html+=`<div class="arrival"><span class="svc">${s.ServiceNo}</span><span class="next ${a1==='Arr'?'arr':''}">${a1}</span><span class="sub">${a2}</span><span class="dir">${dir}</span></div>`;
+      html+=`<div class="arrival"><span class="svc">${s.ServiceNo}</span><span class="next ${a1==='Arr'?'arr':''}">${a1}</span><span class="sub">${a2}</span><span class="sub3">${a3}</span><span class="dir">${dir}</span></div>`;
     });
     html+='</div>';
     el.innerHTML=html;
