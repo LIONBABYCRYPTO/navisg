@@ -292,6 +292,7 @@ class MapScreenState extends State<MapScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -299,9 +300,12 @@ class MapScreenState extends State<MapScreen> {
           _routeServiceNo != null
               ? '${_chinese ? "巴士" : "Bus"} $_routeServiceNo'
               : (_chinese ? '智慧地图' : 'Smart Map'),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
         ),
-        backgroundColor: theme.colorScheme.primaryContainer,
+        backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
         actions: [
           IconButton(
             icon: const Icon(Icons.route),
@@ -409,18 +413,45 @@ class MapScreenState extends State<MapScreen> {
                   );
                 }).toList()),
 
-              // Bus stops
+              // Bus stops — Apple-style grey circles with 2-letter codes
               if (_showBusStops && _routeStops.isEmpty)
                 MarkerLayer(markers: _filteredStops.map((stop) {
                   final isSelected = _selectedStop?.stopCode == stop.stopCode;
-                  final sz = isSelected ? 40.0 : 28.0;
+                  final code = stop.stopCode.length >= 2 ? stop.stopCode.substring(stop.stopCode.length - 2) : stop.stopCode;
                   return Marker(
-                    point: LatLng(stop.latitude, stop.longitude), width: sz, height: sz,
+                    point: LatLng(stop.latitude, stop.longitude),
+                    width: isSelected ? 32 : 26,
+                    height: isSelected ? 32 : 26,
                     child: GestureDetector(
                       onTap: () => _onBusStopTapped(stop),
-                      child: Icon(Icons.directions_bus,
-                          color: isSelected ? Colors.orange : Colors.teal,
-                          size: sz - 4),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFE1251B) : Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? Colors.white : const Color(0xFFC7C7CC),
+                            width: isSelected ? 2.5 : 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            code,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : const Color(0xFF636366),
+                              fontSize: isSelected ? 11 : 9,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 }).toList()),
@@ -498,13 +529,13 @@ class MapScreenState extends State<MapScreen> {
             _buildInfoSheet(),
 
           // Zoom + locate controls
-          Positioned(right: 8, bottom: 80, child: Column(children: [
-            _fab(Icons.add, () => _mapController.move(_mapController.camera.center, (_mapController.camera.zoom + 1).clamp(5, 18))),
-            const SizedBox(height: 8),
-            _fab(Icons.remove, () => _mapController.move(_mapController.camera.center, (_mapController.camera.zoom - 1).clamp(5, 18))),
-            const SizedBox(height: 8),
-            _fab(_gpsAvailable ? Icons.my_location : Icons.location_disabled, _locateMe,
-                isLoading: _loadingGps, color: _gpsAvailable ? Colors.blue : null),
+          Positioned(right: 12, bottom: 80, child: Column(children: [
+            _roundButton(Icons.add, () => _mapController.move(_mapController.camera.center, (_mapController.camera.zoom + 1).clamp(5, 18))),
+            _dividerLine(),
+            _roundButton(Icons.remove, () => _mapController.move(_mapController.camera.center, (_mapController.camera.zoom - 1).clamp(5, 18))),
+            _dividerLine(),
+            _roundButton(_gpsAvailable ? Icons.my_location : Icons.location_disabled, _locateMe,
+                isLoading: _loadingGps, color: _gpsAvailable ? const Color(0xFF007AFF) : null),
           ])),
 
           // Layer toggle bar (bottom-left)
@@ -514,82 +545,118 @@ class MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _fab(IconData icon, VoidCallback onTap, {bool isLoading = false, Color? color}) {
-    return FloatingActionButton.small(
-      heroTag: UniqueKey().toString(),
-      onPressed: isLoading ? null : onTap,
-      child: isLoading
-          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-          : Icon(icon, color: color),
+  Widget _roundButton(IconData icon, VoidCallback onTap, {bool isLoading = false, Color? color}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: 44, height: 44,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        icon: isLoading
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(icon, size: 22, color: color),
+        onPressed: isLoading ? null : onTap,
+      ),
     );
+  }
+
+  Widget _dividerLine() {
+    return Container(width: 20, height: 0.5, color: const Color(0xFFE5E5EA));
   }
 
   // --- Layer toggle panel ---
 
   Widget _buildLayerToggles() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final toggles = <_LayerToggle>[
       _LayerToggle('🚌', 'Bus', _showBusStops, 'bus'),
       _LayerToggle('🚇', 'MRT', _showMrt, 'mrt'),
       _LayerToggle('🅿️', 'Park', _showCarpark, 'carpark'),
-      _LayerToggle('⚠️', 'Traffic', _showTraffic, 'traffic'),
+      _LayerToggle('⚠️', 'Traf', _showTraffic, 'traffic'),
     ];
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: Column(mainAxisSize: MainAxisSize.min, children: toggles.map((t) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: GestureDetector(
-              onTap: () => _toggleLayer(t.key),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: t.active ? _layerBgColor(t.key) : Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(t.icon, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(width: 4),
-                  Text(t.label, style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600,
-                    color: t.active ? Colors.white : Colors.grey,
-                  )),
-                ]),
-              ),
-            ),
-          );
-        }).toList()),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: toggles.map((t) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: GestureDetector(
+            onTap: () => _toggleLayer(t.key),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: t.active ? _layerBgColor(t.key) : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7)),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(t.icon, style: const TextStyle(fontSize: 15)),
+                const SizedBox(width: 5),
+                Text(t.label, style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: t.active ? Colors.white : (isDark ? Colors.grey.shade400 : const Color(0xFF8E8E93)),
+                )),
+              ]),
+            ),
+          ),
+        );
+      }).toList()),
     );
   }
 
   Color _layerBgColor(String key) {
     switch (key) {
-      case 'bus': return Colors.teal.withValues(alpha: 0.2);
-      case 'mrt': return Colors.deepPurple.withValues(alpha: 0.2);
-      case 'carpark': return Colors.green.withValues(alpha: 0.2);
-      case 'traffic': return Colors.red.withValues(alpha: 0.2);
-      default: return Colors.grey.withValues(alpha: 0.2);
+      case 'bus': return const Color(0xFF009688);
+      case 'mrt': return const Color(0xFF673AB7);
+      case 'carpark': return const Color(0xFF34C759);
+      case 'traffic': return const Color(0xFFE1251B);
+      default: return const Color(0xFF8E8E93);
     }
   }
 
   // --- Info bottom sheet ---
 
   Widget _buildInfoSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_selectedStop != null && _selectedServices.isNotEmpty) {
       return _buildArrivalSheet();
     }
     // Generic info card
     if (_selectedInfo != null && _selectedStop == null) {
-      return Positioned(left: 12, right: 12, bottom: 12, child: Card(
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      return Positioned(left: 12, right: 12, bottom: 12, child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 2)),
+          ],
+        ),
         child: Padding(padding: const EdgeInsets.all(16),
           child: Row(children: [
-            Expanded(child: Text(_selectedInfo!, style: const TextStyle(fontWeight: FontWeight.w500))),
-            IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setState(() { _selectedInfo = null; })),
+            Expanded(child: Text(_selectedInfo!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white : const Color(0xFF1C1C1E)))),
+            IconButton(icon: const Icon(Icons.close, size: 18),
+                color: isDark ? Colors.grey.shade400 : const Color(0xFF8E8E93),
+                onPressed: () => setState(() { _selectedInfo = null; })),
           ]),
         ),
       ));
@@ -599,72 +666,133 @@ class MapScreenState extends State<MapScreen> {
 
   Widget _buildArrivalSheet() {
     final theme = Theme.of(context);
-    return Positioned(left: 0, right: 0, bottom: 0, child: Card(
-      margin: const EdgeInsets.all(8),
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SizedBox(
-        height: 280,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Handle
-          Container(margin: const EdgeInsets.only(top: 6), width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-          // Header
-          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 8, 0), child: Row(children: [
-            Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(6)),
-              child: Text(_selectedStop!.stopCode,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onPrimaryContainer))),
-            const SizedBox(width: 10),
-            Expanded(child: Text(_selectedStop!.description,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15), overflow: TextOverflow.ellipsis)),
-            IconButton(icon: const Icon(Icons.star_border, size: 20), tooltip: _chinese ? '收藏' : 'Save',
-                onPressed: _saveStopFromMap, visualDensity: VisualDensity.compact),
-            IconButton(icon: const Icon(Icons.close, size: 18),
-                onPressed: () => setState(() { _selectedStop = null; _selectedServices = []; }),
-                visualDensity: VisualDensity.compact),
-          ])),
-          const Divider(height: 1),
-          // Arrivals
-          Expanded(child: _loadingArrivals
-              ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
-              : _selectedServices.isEmpty
-                  ? Center(child: Text(_chinese ? '暂无巴士信息' : 'No buses', style: TextStyle(color: Colors.grey.shade500)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: _selectedServices.length,
-                      itemBuilder: (ctx, i) => _renderServiceRow(_selectedServices[i]),
-                    )),
-        ]),
+    final isDark = theme.brightness == Brightness.dark;
+    return Positioned(left: 0, right: 0, bottom: 0, child: Container(
+      height: 280,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // Handle bar
+        Container(margin: const EdgeInsets.only(top: 8), width: 36, height: 5,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey.shade700 : const Color(0xFFD1D1D6),
+              borderRadius: BorderRadius.circular(3),
+            )),
+        // Header
+        Padding(padding: const EdgeInsets.fromLTRB(20, 14, 8, 0), child: Row(children: [
+          // Red circle with stop code last 2 digits
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1251B), shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 3)],
+            ),
+            child: Center(
+              child: Text(
+                _selectedStop!.stopCode.length >= 2
+                    ? _selectedStop!.stopCode.substring(_selectedStop!.stopCode.length - 2)
+                    : _selectedStop!.stopCode,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_selectedStop!.description,
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+                  overflow: TextOverflow.ellipsis),
+              Text('${_selectedStop!.stopCode} · ${_selectedStop!.description.split(",").last.trim()}',
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.grey.shade500 : const Color(0xFF8E8E93))),
+            ]),
+          ),
+          IconButton(icon: const Icon(Icons.bookmark_border, size: 20),
+              color: const Color(0xFFE1251B),
+              onPressed: _saveStopFromMap, visualDensity: VisualDensity.compact),
+          IconButton(icon: const Icon(Icons.close, size: 18),
+              color: isDark ? Colors.grey.shade400 : const Color(0xFF8E8E93),
+              onPressed: () => setState(() { _selectedStop = null; _selectedServices = []; }),
+              visualDensity: VisualDensity.compact),
+        ])),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Divider(height: 20, color: Color(0xFFE5E5EA)),
+        ),
+        // Arrivals
+        Expanded(child: _loadingArrivals
+            ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE1251B))))
+            : _selectedServices.isEmpty
+                ? Center(child: Text(_chinese ? '暂无巴士信息' : 'No buses',
+                    style: TextStyle(color: isDark ? Colors.grey.shade500 : const Color(0xFF8E8E93), fontSize: 15)))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _selectedServices.length,
+                    itemBuilder: (ctx, i) => _renderServiceRow(_selectedServices[i]),
+                  )),
+      ]),
     ));
   }
 
   Widget _renderServiceRow(BusService svc) {
     final Color opColor;
     switch (svc.operator) {
-      case 'SBST': opColor = Colors.red; break;
-      case 'SMRT': opColor = Colors.deepPurple; break;
-      case 'TTS': opColor = Colors.orange; break;
-      case 'GAS': opColor = Colors.teal; break;
-      default: opColor = Colors.grey;
+      case 'SBST': opColor = const Color(0xFFE1251B); break;
+      case 'SMRT': opColor = const Color(0xFF673AB7); break;
+      case 'TTS': opColor = const Color(0xFFFF9800); break;
+      case 'GAS': opColor = const Color(0xFF009688); break;
+      default: opColor = const Color(0xFF8E8E93);
     }
-    return InkWell(
-      onTap: () { _loadBusRoute(svc.serviceNo); },
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: isDark ? Colors.grey.shade800 : const Color(0xFFE5E5EA), width: 0.5)),
+      ),
+      child: InkWell(
+        onTap: () => _loadBusRoute(svc.serviceNo),
+        borderRadius: BorderRadius.circular(8),
         child: Row(children: [
-          Container(width: 36, alignment: Alignment.center, padding: const EdgeInsets.symmetric(vertical: 2),
-            decoration: BoxDecoration(color: opColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-            child: Text(svc.serviceNo, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: opColor))),
-          const SizedBox(width: 8),
+          // Service number in a clean pill
+          Container(
+            width: 44, height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: opColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(svc.serviceNo, style: TextStyle(
+              fontWeight: FontWeight.w700, fontSize: 14, color: opColor, letterSpacing: 0.3,
+            )),
+          ),
+          const SizedBox(width: 14),
           _arrTime('1st', svc.nextBus),
           _arrTime('2nd', svc.nextBus2),
           _arrTime('3rd', svc.nextBus3),
+          const Spacer(),
           if (svc.nextBus?.isWheelchairAccessible == true || svc.nextBus2?.isWheelchairAccessible == true)
-            const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.accessible, size: 16, color: Colors.blue)),
-          const SizedBox(width: 4),
-          const Icon(Icons.route, size: 14, color: Colors.grey),
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.accessible, size: 16, color: Colors.blue),
+            ),
+          Icon(Icons.chevron_right, size: 16, color: isDark ? Colors.grey.shade600 : const Color(0xFFC7C7CC)),
         ]),
       ),
     );
@@ -674,38 +802,53 @@ class MapScreenState extends State<MapScreen> {
     final mins = info?.minutesUntilArrival;
     String display; Color color;
     if (info == null || info.monitored == 0 || mins == null || mins < 0) {
-      display = '-'; color = Colors.grey;
+      display = '-'; color = const Color(0xFFC7C7CC);
     } else if (mins == 0) {
-      display = 'Arr'; color = Colors.green;
+      display = 'Arr'; color = const Color(0xFF34C759);
     } else if (mins <= 3) {
-      display = '${mins}m'; color = Colors.orange.shade700;
+      display = '${mins}m'; color = const Color(0xFFFF9500);
     } else {
-      display = '${mins}m'; color = Colors.black87;
+      display = '${mins}m'; color = const Color(0xFF1C1C1E);
     }
-    return Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
-      Text(display, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
-    ]));
+    return Padding(
+      padding: const EdgeInsets.only(right: 18),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF8E8E93))),
+        const SizedBox(height: 2),
+        Text(display, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17, color: color)),
+      ]),
+    );
   }
 
   // --- Route info bar ---
 
   Widget _buildRouteInfoBar() {
-    final theme = Theme.of(context);
-    return Positioned(left: 8, right: 8, bottom: 8, child: Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(padding: const EdgeInsets.all(12),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Positioned(left: 12, right: 12, bottom: 12, child: Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Padding(padding: const EdgeInsets.all(14),
         child: Row(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(6)),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE1251B).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Text(_routeServiceNo!,
-                style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimaryContainer))),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFFE1251B))),
+          ),
           const SizedBox(width: 12),
           Expanded(child: Text('${_routeStops.first.roadName} → ${_routeStops.last.roadName}',
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15,
+                  color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+              overflow: TextOverflow.ellipsis)),
           Text('${_routeStops.length} ${_chinese ? "站" : "stops"}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93))),
         ]),
       ),
     ));

@@ -100,19 +100,41 @@ class _NavisgAppState extends State<NavisgApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
+          seedColor: const Color(0xFFE1251B), // Singabus red
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          elevation: 0,
+          indicatorColor: const Color(0xFFE1251B).withValues(alpha: 0.12),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE1251B));
+            }
+            return const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF8E8E93));
+          }),
+        ),
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
+          seedColor: const Color(0xFFE1251B),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(centerTitle: true),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          elevation: 0,
+          indicatorColor: const Color(0xFFE1251B).withValues(alpha: 0.2),
+        ),
       ),
       themeMode: _darkMode ? ThemeMode.dark : ThemeMode.light,
       home: _buildHome(),
