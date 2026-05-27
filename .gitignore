@@ -3,7 +3,11 @@
 .packages
 .flutter-plugins
 .flutter-plugins-dependencies
-android/app/keys/
+# Generated media & screenshots
+/feature_graphic.png
+/screenshot_1.png
+/keyword_banner.png
+/render_icon.html
 build/
 *.iml
 .idea/
