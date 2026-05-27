@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/bus_stop.dart';
 import '../services/lta_service.dart';
 import '../services/favorites_service.dart';
+import '../services/favorite_routes_service.dart';
 import '../services/l10n.dart';
 import '../widgets/bus_timing_card.dart';
 import '../widgets/ad_banner.dart';
@@ -44,12 +45,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Reorder
   bool _isReordering = false;
+  // Favorite routes
+  List<FavoriteRoute> _favoriteRoutes = [];
+  bool _showFavoriteRoutes = false;
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
     _loadData();
+    _loadFavoriteRoutes();
   }
 
   @override
@@ -92,6 +97,14 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadFavoriteRoutes() async {
+    final fav = FavoriteRoutesService();
+    final routes = await fav.getRoutes();
+    if (mounted) {
+      setState(() => _favoriteRoutes = routes);
+    }
   }
 
   Future<void> _loadData() async {
@@ -346,6 +359,72 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                   ),
                 ],
+              ),
+            ),
+          // Saved routes section
+          if (_favoriteRoutes.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: InkWell(
+                onTap: () => setState(() => _showFavoriteRoutes = !_showFavoriteRoutes),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200, width: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.route, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 6),
+                      Text(
+                        _chinese ? '已保存路线' : 'Saved Routes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      Text(
+                        ' (${_favoriteRoutes.length})',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        _showFavoriteRoutes
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                        color: Colors.grey.shade500,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (_showFavoriteRoutes && _favoriteRoutes.isNotEmpty)
+            SizedBox(
+              height: 48,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: _favoriteRoutes.length,
+                itemBuilder: (context, index) {
+                  final route = _favoriteRoutes[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Chip(
+                      avatar: const Icon(Icons.directions_bus, size: 16),
+                      label: Text('${route.serviceNo} @ ${route.stopCode}'),
+                      onDeleted: () async {
+                        final fav = FavoriteRoutesService();
+                        await fav.removeRoute(route.serviceNo, route.stopCode);
+                        _loadFavoriteRoutes();
+                      },
+                    ),
+                  );
+                },
               ),
             ),
           Expanded(

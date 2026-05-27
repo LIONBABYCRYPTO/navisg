@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/bus_stop.dart';
+import '../services/favorite_routes_service.dart';
 
 /// Card widget showing bus arrival times for a saved bus stop.
-/// Supports drag-to-reorder when in reorder mode.
 class BusTimingCard extends StatelessWidget {
   final BusStop stop;
   final List<BusService> services;
@@ -65,7 +65,6 @@ class BusTimingCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Share QR button
                 IconButton(
                   icon: const Icon(Icons.qr_code, size: 18),
                   onPressed: () => _showQrDialog(context),
@@ -102,7 +101,10 @@ class BusTimingCard extends StatelessWidget {
             else
               ...services.map((service) => _BusServiceRow(
                     service: service,
+                    stop: stop,
                     onTap: () => _showServiceInfo(context, service),
+                    onSaveRoute: () =>
+                        _saveFavoriteRoute(context, service),
                   )),
           ],
         ),
@@ -181,13 +183,23 @@ class BusTimingCard extends StatelessWidget {
               children: [
                 const Icon(Icons.pin_drop, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
-                Text('At stop: ${stop.stopCode} - ${stop.description}',
+                Text('Stop ${stop.stopCode} - ${stop.description}',
                     style: const TextStyle(fontSize: 14)),
               ],
             ),
-            const SizedBox(height: 12),
-            const Text('Tap Search to find this bus route on the map.',
-                style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.map, size: 18),
+                label: const Text('View Route on Map'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  // Navigate to map tab — pass serviceNo via Navigator
+                  Navigator.of(context).maybePop({'serviceNo': service.serviceNo, 'stopCode': stop.stopCode});
+                },
+              ),
+            ),
           ],
         ),
         actions: [
@@ -199,13 +211,39 @@ class BusTimingCard extends StatelessWidget {
       ),
     );
   }
+
+  void _saveFavoriteRoute(BuildContext context, BusService service) async {
+    final favService = FavoriteRoutesService();
+    await favService.addRoute(FavoriteRoute(
+      serviceNo: service.serviceNo,
+      stopCode: stop.stopCode,
+      stopName: stop.description,
+    ));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Bus ${service.serviceNo} at ${stop.stopCode} saved!',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 }
 
 class _BusServiceRow extends StatelessWidget {
   final BusService service;
+  final BusStop stop;
   final VoidCallback onTap;
+  final VoidCallback onSaveRoute;
 
-  const _BusServiceRow({required this.service, required this.onTap});
+  const _BusServiceRow({
+    required this.service,
+    required this.stop,
+    required this.onTap,
+    required this.onSaveRoute,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -251,9 +289,19 @@ class _BusServiceRow extends StatelessWidget {
                 service.nextBus2?.isWheelchairAccessible == true ||
                 service.nextBus3?.isWheelchairAccessible == true)
               const Padding(
-                padding: EdgeInsets.only(left: 4),
+                padding: EdgeInsets.only(left: 2),
                 child: Icon(Icons.accessible, size: 18, color: Colors.blue),
               ),
+
+            // Save route star
+            IconButton(
+              icon: const Icon(Icons.star_border, size: 18),
+              onPressed: onSaveRoute,
+              tooltip: 'Save bus route',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(maxWidth: 28, maxHeight: 28),
+            ),
           ],
         ),
       ),

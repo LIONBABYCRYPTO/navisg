@@ -222,4 +222,39 @@ class LTAService {
       return [];
     }
   }
+
+  // ===================================================================
+  // Bus Routes
+  // ===================================================================
+
+  /// Fetches bus route (sequence of stops) for a given service number.
+  /// Direction: 1=forward, 2=backward.
+  Future<List<BusRouteStop>> getBusRoute(String serviceNo, {int direction = 1}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl/BusRoutes')
+          .replace(queryParameters: {
+            '\$skip': '0',
+            'ServiceNo': serviceNo,
+          });
+      final request = await _client.getUrl(uri);
+      request.headers.set('AccountKey', _apiKey);
+      request.headers.set('Accept', 'application/json');
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(body) as Map<String, dynamic>;
+        final allStops = (data['value'] as List? ?? [])
+            .map((s) => BusRouteStop.fromJson(s as Map<String, dynamic>))
+            .where((s) => s.direction == direction)
+            .toList();
+        allStops.sort((a, b) => a.stopSequence.compareTo(b.stopSequence));
+        return allStops;
+      }
+      return [];
+    } catch (e) {
+      debugPrint('LTA getBusRoute exception: $e');
+      return [];
+    }
+  }
 }

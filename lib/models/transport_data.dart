@@ -127,3 +127,39 @@ class TrafficIncident {
     }
   }
 }
+
+/// A single stop in a bus route (from BusRoutes API)
+class BusRouteStop {
+  final String serviceNo;
+  final String operator;
+  final int direction; // 1=forward, 2=backward
+  final int stopSequence;
+  final String busStopCode;
+  final double latitude;
+  final double longitude;
+  final String roadName;
+
+  BusRouteStop({
+    required this.serviceNo,
+    required this.operator,
+    required this.direction,
+    required this.stopSequence,
+    required this.busStopCode,
+    required this.latitude,
+    required this.longitude,
+    required this.roadName,
+  });
+
+  factory BusRouteStop.fromJson(Map<String, dynamic> json) {
+    return BusRouteStop(
+      serviceNo: json['ServiceNo'] ?? '',
+      operator: json['Operator'] ?? '',
+      direction: json['Direction'] ?? 1,
+      stopSequence: json['StopSequence'] ?? 0,
+      busStopCode: json['BusStopCode'] ?? '',
+      latitude: (json['Latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['Longitude'] as num?)?.toDouble() ?? 0.0,
+      roadName: json['RoadName'] ?? '',
+    );
+  }
+}
