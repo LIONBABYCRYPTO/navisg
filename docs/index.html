@@ -6,7 +6,6 @@
 <title>Nāvisg — Singapore Transport</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>const LTA_API_KEY='NWmaalj9Sfab+4ghQW0xTw==';</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:#fff}
@@ -54,6 +53,7 @@ html,body{height:100%;overflow:hidden;background:#fff}
 
 <script>
 // ===== CONFIG =====
+const PROXY_URL = 'https://relocation-bride-harold-behind.trycloudflare.com';
 const CENTER=[1.283,103.851];
 const ZOOM=15;
 const STOP_RADIUS=80;
@@ -251,12 +251,10 @@ function createCarparkLayer(){
 // ===== LTA API =====
 async function fetchLTA(endpoint){
   try{
-    const resp=await fetch(`https://datamall2.mytransport.sg/ltaodataservice/${endpoint}`,{
-      headers:{AccountKey:LTA_API_KEY}
-    });
+    const resp=await fetch(`${PROXY_URL}/api/${endpoint}`);
     if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
-    return data.value||[];
+    return data.value||data||[];
   }catch(e){
     console.error('LTA API error:',e);
     return null;
@@ -269,9 +267,7 @@ async function fetchArrivals(code,name){
   el.innerHTML='Loading arrivals...';
   el.className='loading';
   try{
-    const resp=await fetch(`https://datamall2.mytransport.sg/ltaodataservice/BusArrivalv2?BusStopCode=${code}`,{
-      headers:{AccountKey:LTA_API_KEY}
-    });
+    const resp=await fetch(`${PROXY_URL}/api/bus-arrival?BusStopCode=${code}`);
     if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
     const data=await resp.json();
     const services=data.Services||[];
@@ -315,7 +311,7 @@ async function fetchCarparkAvailability(name){
   el.innerHTML='Checking...';
   el.className='loading';
   try{
-    const data=await fetchLTA('CarParkAvailabilityv2');
+    const data=await fetchLTA('carpark');
     if(!data){el.innerHTML='<span class="error">Unavailable</span>';return}
     const cp=data.find(c=>c.Development?.toLowerCase().includes(name.toLowerCase().slice(0,6)));
     if(cp){
