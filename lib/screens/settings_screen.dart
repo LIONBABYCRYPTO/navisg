@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/lta_service.dart';
 import '../services/l10n.dart';
 import '../models/bus_stop.dart';
 
-/// Settings screen — theme toggle, API key, language, about
+/// Settings screen — theme, language, feedback, share, update check, about.
 class SettingsScreen extends StatefulWidget {
   final LTAService ltaService;
   final List<BusStop> allStops;
@@ -48,6 +50,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _chinese = value);
   }
 
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_chinese ? '无法打开链接' : 'Could not open link')),
+        );
+      }
+    }
+  }
+
+  void _shareApp() {
+    final text = _chinese
+        ? '🚌 试试 Nāvisg — 新加坡实时公交、地铁、停车场、交通信息！\nhttps://play.google.com/store/apps/details?id=com.navisg.navisg'
+        : '🚌 Check out Nāvisg — real-time SG bus arrivals, MRT, carpark & traffic!\nhttps://play.google.com/store/apps/details?id=com.navisg.navisg';
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_chinese ? '应用链接已复制！分享给朋友吧 🎉' : 'App link copied! Share with friends 🎉'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -60,6 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // === APPEARANCE ===
           _SectionHeader(title: _chinese ? '外观' : 'Appearance'),
           Card(
             child: SwitchListTile(
@@ -80,6 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // === LANGUAGE ===
           _SectionHeader(title: _chinese ? '语言' : 'Language'),
           Card(
             child: SwitchListTile(
@@ -95,12 +125,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // === FEEDBACK & SUPPORT ===
+          _SectionHeader(title: _chinese ? '反馈与支持' : 'Feedback & Support'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.report_problem, color: Colors.orange),
+                  title: Text(_chinese ? '报告不准确的巴士时间' : 'Report Inaccurate Timing'),
+                  subtitle: Text(
+                    _chinese ? '帮助我们改善数据准确性' : 'Help us improve data accuracy',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: () => _launchUrl(
+                    'mailto:navisg.app@gmail.com?subject=${_chinese ? "巴士时间不准确报告" : "Bus Timing Inaccuracy Report"}',
+                  ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.star, color: Colors.amber),
+                  title: Text(_chinese ? '在应用商店评分' : 'Rate on Play Store'),
+                  subtitle: Text(
+                    _chinese ? '您的评价帮助我们成长' : 'Your rating helps us grow',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: () => _launchUrl(
+                    'https://play.google.com/store/apps/details?id=com.navisg.navisg',
+                  ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.share, color: Colors.blue),
+                  title: Text(_chinese ? '分享应用给朋友' : 'Share App'),
+                  subtitle: Text(
+                    _chinese ? '推荐 Nāvisg 给好友和家人' : 'Recommend Nāvisg to friends & family',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  trailing: const Icon(Icons.share, size: 18),
+                  onTap: _shareApp,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // === UPDATE ===
+          _SectionHeader(title: _chinese ? '更新' : 'Updates'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.system_update, color: Colors.green),
+              title: Text(_chinese ? '检查更新' : 'Check for Updates'),
+              subtitle: Text(
+                _chinese ? '前往 Play Store 获取最新版本' : 'Visit Play Store for the latest version',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () => _launchUrl(
+                'https://play.google.com/store/apps/details?id=com.navisg.navisg',
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // === DATA ===
           _SectionHeader(title: _chinese ? '数据' : 'Data'),
           Card(
             child: ListTile(
               leading: const Icon(Icons.key),
               title: Text(_chinese ? 'LTA API密钥' : 'LTA API Key'),
-              subtitle: Text(_chinese ? '更新您的DataMall密钥' : 'Update your DataMall key'),
+              subtitle: Text(
+                _chinese ? '更新您的DataMall密钥' : 'Update your DataMall key',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showApiKeyDialog(context),
             ),
@@ -108,6 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
+          // === ABOUT ===
           _SectionHeader(title: _chinese ? '关于' : 'About'),
           Card(
             child: Column(
@@ -115,7 +216,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.info_outline),
                   title: Text(_chinese ? '版本' : 'Version'),
-                  subtitle: const Text('1.1.0+1'),
+                  subtitle: const Text('1.2.0+1'),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 const ListTile(
@@ -128,6 +229,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   leading: Icon(Icons.directions_bus),
                   title: Text('Transport Data'),
                   subtitle: Text('LTA DataMall'),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  leading: const Icon(Icons.code, color: Colors.grey),
+                  title: Text(
+                    _chinese ? '开源代码' : 'Open Source',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  subtitle: Text(
+                    _chinese ? '在 GitHub 上查看源代码' : 'View source on GitHub',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  trailing: const Icon(Icons.open_in_new, size: 18, color: Colors.grey),
+                  onTap: () => _launchUrl('https://github.com/LIONBABYCRYPTO/navisg'),
                 ),
               ],
             ),

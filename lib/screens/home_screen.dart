@@ -9,7 +9,6 @@ import '../services/l10n.dart';
 import '../widgets/bus_timing_card.dart';
 import '../widgets/ad_banner.dart';
 import 'search_screen.dart';
-import 'settings_screen.dart';
 
 /// Home screen — shows saved bus stops with live arrival times.
 /// Features: auto-refresh, direction filter, drag-to-reorder, search filter.
@@ -17,12 +16,14 @@ class HomeScreen extends StatefulWidget {
   final LTAService ltaService;
   final FavoritesService favoritesService;
   final List<BusStop> allStops;
+  final void Function(String? serviceNo, String? stopCode)? onShowRouteOnMap;
 
   const HomeScreen({
     super.key,
     required this.ltaService,
     required this.favoritesService,
     required this.allStops,
+    this.onShowRouteOnMap,
   });
 
   @override
@@ -232,17 +233,11 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: _chinese ? '刷新' : 'Refresh',
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SettingsScreen(
-                  allStops: widget.allStops,
-                  ltaService: widget.ltaService,
-                ),
-              ),
-            ).then((_) => _loadPrefs()),
-            tooltip: _chinese ? '设置' : 'Settings',
+            icon: const Icon(Icons.map),
+            onPressed: () {
+              widget.onShowRouteOnMap?.call(null, null);
+            },
+            tooltip: _chinese ? '地图' : 'Map',
           ),
         ],
       ),
@@ -495,7 +490,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _loadData();
           },
           onRefresh: _loadData,
-          isDragging: false,
+          onShowRouteOnMap: widget.onShowRouteOnMap,
+          isDragging: true,
         );
       },
     );

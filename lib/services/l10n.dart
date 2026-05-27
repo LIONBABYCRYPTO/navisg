@@ -114,4 +114,52 @@ class AppStrings {
     'en': 'Bus Route',
     'zh': '巴士路线',
   };
+  static Map<String, String> get reportTiming => {
+    'en': 'Report Inaccurate Timing',
+    'zh': '报告不准确的巴士时间',
+  };
+  static Map<String, String> get rateApp => {
+    'en': 'Rate on Play Store',
+    'zh': '在应用商店评分',
+  };
+  static Map<String, String> get shareApp => {
+    'en': 'Share App',
+    'zh': '分享应用',
+  };
+  static Map<String, String> get checkUpdate => {
+    'en': 'Check for Updates',
+    'zh': '检查更新',
+  };
+  static Map<String, String> get nearbyMap => {
+    'en': 'Nearby Map',
+    'zh': '附近地图',
+  };
+  static Map<String, String> get myLocation => {
+    'en': 'Your Location',
+    'zh': '我的位置',
+  };
+  static Map<String, String> get nearbyStops => {
+    'en': 'Nearby Stops',
+    'zh': '附近车站',
+  };
+  static Map<String, String> get locateMe => {
+    'en': 'Locate Me',
+    'zh': '定位我',
+  };
+  static Map<String, String> get savedRoutes => {
+    'en': 'Saved Routes',
+    'zh': '已保存路线',
+  };
+  static Map<String, String> get feedback => {
+    'en': 'Feedback & Support',
+    'zh': '反馈与支持',
+  };
+  static Map<String, String> get updates => {
+    'en': 'Updates',
+    'zh': '更新',
+  };
+  static Map<String, String> get openSource => {
+    'en': 'Open Source',
+    'zh': '开源代码',
+  };
 }

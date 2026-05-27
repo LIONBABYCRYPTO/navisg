@@ -5,11 +5,11 @@ import 'services/lta_service.dart';
 import 'services/favorites_service.dart';
 import 'models/bus_stop.dart';
 import 'screens/home_screen.dart';
-import 'screens/nearby_screen.dart';
 import 'screens/mrt_screen.dart';
 import 'screens/carpark_screen.dart';
 import 'screens/traffic_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +32,10 @@ class _NavisgAppState extends State<NavisgApp> {
   String? _initError;
   int _currentTab = 0;
   bool _darkMode = false;
+  bool _chinese = false;
+
+  // Global key to access MapScreen state from bus timing card
+  final GlobalKey<MapScreenState> _mapKey = GlobalKey<MapScreenState>();
 
   @override
   void initState() {
@@ -52,8 +56,9 @@ class _NavisgAppState extends State<NavisgApp> {
         return;
       }
 
-      // Load theme preference
+      // Load theme & locale preferences
       final darkMode = prefs.getBool('dark_mode') ?? false;
+      final chinese = prefs.getString('navisg_locale') == 'zh';
 
       _ltaService = LTAService(apiKey);
       _favoritesService = FavoritesService();
@@ -63,6 +68,7 @@ class _NavisgAppState extends State<NavisgApp> {
         _allStops = stops;
         _initializing = false;
         _darkMode = darkMode;
+        _chinese = chinese;
       });
     } catch (e) {
       setState(() {
@@ -76,6 +82,15 @@ class _NavisgAppState extends State<NavisgApp> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('lta_api_key', key.trim());
     _initialize();
+  }
+
+  /// Called from bus timing card "View Route on Map" to switch tab + show route
+  void _showRouteOnMap(String? serviceNo, String? stopCode) {
+    setState(() => _currentTab = 1); // Map tab
+    // Give the map state a moment to mount
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mapKey.currentState?.setTabIndexFromOutside(serviceNo, stopCode);
+    });
   }
 
   @override
@@ -152,21 +167,24 @@ class _NavisgAppState extends State<NavisgApp> {
     }
 
     final screens = <Widget>[
+      // Tab 0: Saved stops (Home)
       HomeScreen(
         ltaService: _ltaService,
         favoritesService: _favoritesService,
         allStops: _allStops,
+        onShowRouteOnMap: _showRouteOnMap,
       ),
-      NearbyScreen(
-        ltaService: _ltaService,
-        allStops: _allStops,
-      ),
+      // Tab 1: Unified Map (replaces old Map + Nearby)
       MapScreen(
+        key: _mapKey,
         ltaService: _ltaService,
         allStops: _allStops,
       ),
+      // Tab 2: Carpark
       CarparkScreen(ltaService: _ltaService, allStops: _allStops),
+      // Tab 3: MRT
       MrtScreen(ltaService: _ltaService, allStops: _allStops),
+      // Tab 4: Traffic
       TrafficScreen(ltaService: _ltaService, allStops: _allStops),
     ];
 
@@ -180,40 +198,59 @@ class _NavisgAppState extends State<NavisgApp> {
         onDestinationSelected: (index) {
           setState(() => _currentTab = index);
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.star_border),
-            selectedIcon: Icon(Icons.star),
-            label: 'Saved',
+            icon: const Icon(Icons.star_border),
+            selectedIcon: const Icon(Icons.star),
+            label: _chinese ? '收藏' : 'Saved',
           ),
           NavigationDestination(
-            icon: Icon(Icons.near_me_outlined),
-            selectedIcon: Icon(Icons.near_me),
-            label: 'Nearby',
+            icon: const Icon(Icons.map_outlined),
+            selectedIcon: const Icon(Icons.map),
+            label: _chinese ? '地图' : 'Map',
           ),
           NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map),
-            label: 'Map',
+            icon: const Icon(Icons.local_parking_outlined),
+            selectedIcon: const Icon(Icons.local_parking),
+            label: _chinese ? '停车场' : 'Carpark',
           ),
           NavigationDestination(
-            icon: Icon(Icons.local_parking_outlined),
-            selectedIcon: Icon(Icons.local_parking),
-            label: 'Carpark',
+            icon: const Icon(Icons.train_outlined),
+            selectedIcon: const Icon(Icons.train),
+            label: _chinese ? '地铁' : 'MRT',
           ),
           NavigationDestination(
-            icon: Icon(Icons.train_outlined),
-            selectedIcon: Icon(Icons.train),
-            label: 'MRT',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.warning_amber_outlined),
-            selectedIcon: Icon(Icons.warning_amber),
-            label: 'Traffic',
+            icon: const Icon(Icons.warning_amber_outlined),
+            selectedIcon: const Icon(Icons.warning_amber),
+            label: _chinese ? '交通' : 'Traffic',
           ),
         ],
       ),
+      // Floating settings gear
+      floatingActionButton: FloatingActionButton.small(
+        heroTag: 'settings',
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SettingsScreen(
+              allStops: _allStops,
+              ltaService: _ltaService,
+            ),
+          ),
+        ).then((_) => _loadPrefsAfterSettings()),
+        child: const Icon(Icons.settings),
+      ),
     );
+  }
+
+  Future<void> _loadPrefsAfterSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _darkMode = prefs.getBool('dark_mode') ?? false;
+        _chinese = prefs.getString('navisg_locale') == 'zh';
+      });
+    }
   }
 }
 

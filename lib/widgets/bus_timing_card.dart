@@ -10,6 +10,7 @@ class BusTimingCard extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback onRefresh;
   final bool isDragging;
+  final void Function(String? serviceNo, String? stopCode)? onShowRouteOnMap;
 
   const BusTimingCard({
     super.key,
@@ -18,6 +19,7 @@ class BusTimingCard extends StatelessWidget {
     required this.onRemove,
     required this.onRefresh,
     this.isDragging = false,
+    this.onShowRouteOnMap,
   });
 
   @override
@@ -195,8 +197,7 @@ class BusTimingCard extends StatelessWidget {
                 label: const Text('View Route on Map'),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  // Navigate to map tab — pass serviceNo via Navigator
-                  Navigator.of(context).maybePop({'serviceNo': service.serviceNo, 'stopCode': stop.stopCode});
+                  onShowRouteOnMap?.call(service.serviceNo, stop.stopCode);
                 },
               ),
             ),
