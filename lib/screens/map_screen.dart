@@ -399,6 +399,57 @@ class MapScreenState extends State<MapScreen> {
                   }).toList(),
                 ),
 
+              // MRT station markers
+              if (_routeStops.isEmpty && _filteredStops.length < 5000)
+                MarkerLayer(
+                  markers: singaporeMrtStations.map((mrt) {
+                    return Marker(
+                      point: LatLng(mrt.latitude, mrt.longitude),
+                      width: 30,
+                      height: 30,
+                      child: GestureDetector(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${mrt.name} (${mrt.line} Line)',
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _mrtLineColor(mrt.line),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 3,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              _mrtLineAbbr(mrt.line),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+
               // Bus stop markers (when no route)
               if (_routeStops.isEmpty)
                 MarkerLayer(
@@ -795,6 +846,36 @@ class MapScreenState extends State<MapScreen> {
     if (x < -1) return -1.57079632679;
     if (x > 1) return 1.57079632679;
     return x + (x * x * x) / 6 + (3 * x * x * x * x * x) / 40;
+  }
+
+  /// Get color for MRT line
+  Color _mrtLineColor(String line) {
+    switch (line) {
+      case 'NS': return const Color(0xFFD42E12); // Red
+      case 'EW': return const Color(0xFF009645); // Green
+      case 'NE': return const Color(0xFF9900AA); // Purple
+      case 'CC': return const Color(0xFFFFA100); // Orange/Yellow
+      case 'DT': return const Color(0xFF005EC4); // Blue
+      case 'TE': return const Color(0xFF9D5B25); // Brown
+      case 'CG': return const Color(0xFF009645); // Green (same as EW)
+      case 'LRT': return const Color(0xFF878787); // Grey
+      default: return Colors.grey;
+    }
+  }
+
+  /// Get short abbreviation for MRT line name
+  String _mrtLineAbbr(String line) {
+    switch (line) {
+      case 'NS': return 'NS';
+      case 'EW': return 'EW';
+      case 'NE': return 'NE';
+      case 'CC': return 'CC';
+      case 'DT': return 'DT';
+      case 'TE': return 'TE';
+      case 'CG': return 'CG';
+      case 'LRT': return 'L';
+      default: return '?';
+    }
   }
 }
 
