@@ -1,0 +1,35 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.metadata
+*.lock
+*.log
+*.pid
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+local.properties
+android/key.properties
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner.xcworkspace/
+*.xcworkspace
+# macOS
+macos/Pods/
+macos/.symlinks/
+macos/Flutter/Flutter.framework
+macos/Flutter/Flutter.podspec
+# Secrets
+*.env
+secrets.json
+secrets/
+# IDE
+.vscode/
+.DS_Store
